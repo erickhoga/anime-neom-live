@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#070712" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta name="description" content="Protótipo de arena interativa para LIVE." />
+    <title>anime neom clash</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=20261115-08" />
+  </head>
+  <body class="mode-dev">
+    <nav class="mode-switch-shell" aria-label="Modo de visualização">
+      <div class="mode-switch">
+        <button class="mode-switch__button is-active" data-mode="dev"><span>01</span> DEV</button>
+        <button class="mode-switch__button" data-mode="video"><span>02</span> VÍDEO 9:16</button>
+        <button class="mode-switch__button" data-mode="live"><span>03</span> LIVE <small>9:16</small></button>
+      </div>
+    </nav>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow"><span class="live-dot"></span> <span id="modeEyebrow">SIMULADOR DE LIVE</span></p>
+          <h1>ANIME NEOM <span>CLASH</span></h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="live-queue-simulation" id="liveQueueSimulation" type="button" aria-pressed="false">
+            <span aria-hidden="true">▶</span><b>SIMULAR LIVE</b>
+          </button>
+          <div class="music-picker">
+            <label for="musicSelect">TRILHA</label>
+            <select id="musicSelect" aria-label="Escolher música de fundo">
+              <option value="cyber-runner">Cyber Runner</option>
+              <option value="hard-battle">Hard Battle</option>
+              <option value="jrpg-rock">JRPG Rock</option>
+              <option value="midi-battle">Retro Boss</option>
+            </select>
+            <button class="music-toggle" id="musicToggle" type="button" aria-label="Ativar música de fundo" aria-pressed="false" title="Música de fundo: toque para ativar">
+              <span aria-hidden="true">♫</span><i aria-hidden="true"></i>
+            </button>
+          </div>
+          <button class="characters-info-button" id="charactersInfoButton" type="button" aria-label="Ver todos os personagens" aria-haspopup="dialog">i</button>
+          <div class="online-chip"><strong id="activeCount">0</strong><span>NA ARENA</span></div>
+        </div>
+      </header>
+
+      <section class="entry-panel" aria-label="Simulador de doação">
+        <div class="panel-title">
+          <div><small>NOVA ENTRADA</small><strong>Digite o nick e escolha a doação</strong></div>
+          <span>TESTE MANUAL</span>
+        </div>
+        <label class="viewer-field" for="viewerName">
+          <span>@</span><input id="viewerName" maxlength="18" autocomplete="off" placeholder="nick_da_pessoa" />
+        </label>
+        <div class="donation-buttons">
+          <button class="donation donation--small" data-tier="small">
+            <span class="donation-icon">●</span><span><b>DOAÇÃO PEQUENA</b><small>Zenitsu • Megumin • Yor • Thorfinn • Singed • Subaru • Genos • Sung Jin-Woo • Tanjiro • Itadori • Shikamaru • Nami</small></span>
+          </button>
+          <button class="donation donation--medium" data-tier="medium">
+            <span class="donation-icon">◆</span><span><b>DOAÇÃO MÉDIA</b><small>char11 Escanor • char12 Bomberman • char13 Hitsugaya • char14 Killua • char15 Isagi • char16 Midoriya • char17 Rudeus • char18 Kirito • char19 Lelouch • char20 Saitama</small></span>
+          </button>
+          <button class="donation donation--large" data-tier="large">
+            <span class="donation-icon">✦</span><span><b>DOAÇÃO GRANDE</b><small>Ichigo • Luffy • Denji • Eren • Naruto • Pikachu • Edward • Rimuru • Goku • Gojo • Minato • Cain</small></span>
+          </button>
+        </div>
+        <p class="field-error" id="fieldError" role="alert"></p>
+      </section>
+
+      <section class="arena-layout">
+        <div class="live-roulette" id="liveRoulette" hidden aria-live="polite">
+          <div class="live-roulette__window">
+            <div class="live-roulette__marker" aria-hidden="true"></div>
+            <div class="live-roulette__track" id="liveRouletteTrack"></div>
+          </div>
+          <div class="live-roulette__result">
+            <strong id="liveRouletteName">SORTEANDO</strong>
+            <span id="liveRouletteViewer">@jogador</span>
+          </div>
+        </div>
+        <div class="arena-wrap">
+          <div class="corner corner--tl"></div><div class="corner corner--tr"></div>
+          <div class="corner corner--bl"></div><div class="corner corner--br"></div>
+          <canvas id="arena" aria-label="Arena de bolinhas"></canvas>
+          <div class="arena-status"><span></span> ARENA ATIVA • MÁX. 6</div>
+          <div class="empty-state" id="emptyState">
+            <strong>ARENA VAZIA</strong><span>Adicione a primeira pessoa acima</span>
+          </div>
+
+          <div class="roulette" id="roulette" hidden>
+            <div class="roulette-light"></div>
+            <div class="video-forced-reveal" id="videoForcedReveal" hidden>
+              <b>BUM!</b><small>ESCOLHA DO JOGADOR</small>
+              <div class="video-forced-reveal__portrait" id="videoForcedPortrait"></div>
+              <strong id="videoForcedCharacter">PERSONAGEM</strong><span id="videoForcedPlayer">JOGADOR</span>
+            </div>
+            <p id="rouletteTier">ROLETA PEQUENA</p>
+            <div class="roulette-stage">
+              <div class="roulette-pointer"></div>
+              <div class="roulette-wheel" id="rouletteWheel">
+                <div class="roulette-labels" id="rouletteLabels"></div>
+                <div class="roulette-hub">✦</div>
+              </div>
+            </div>
+            <small>SORTEANDO PERSONAGEM PARA</small>
+            <strong id="rouletteViewer">@pessoa</strong>
+          </div>
+
+          <div class="result" id="result" hidden>
+            <small id="resultLabel">PERSONAGEM SORTEADO</small>
+            <strong id="resultCharacter">CHAR1</strong>
+            <span id="resultViewer">@pessoa entrou na arena!</span>
+          </div>
+          <div class="video-entry-reveal" id="videoEntryReveal" hidden>
+            <small>ENTRANDO NA ARENA</small>
+            <div class="video-entry-reveal__portrait" id="videoEntryPortrait"><span class="video-entry-reveal__player-avatar" id="videoEntryPlayerAvatar" aria-label="Avatar do jogador" hidden></span></div>
+            <strong id="videoEntryCharacter">PERSONAGEM</strong>
+            <span id="videoEntryPlayer">JOGADOR</span>
+          </div>
+          <div class="video-countdown" id="videoCountdown" hidden><small id="videoCountdownLabel">PREPARE-SE</small><strong id="videoCountdownValue">3</strong></div>
+          <div class="video-duel" id="videoDuel" hidden>
+            <small>ÚLTIMOS SOBREVIVENTES</small>
+            <strong>DUELO FINAL</strong>
+            <div class="video-duel__fighters">
+              <article><div class="video-duel__avatar" id="videoDuelAvatarA"></div><b id="videoDuelNameA">LUTADOR 1</b></article>
+              <span>VS</span>
+              <article><div class="video-duel__avatar" id="videoDuelAvatarB"></div><b id="videoDuelNameB">LUTADOR 2</b></article>
+            </div>
+          </div>
+          <div class="video-ko" id="videoKo" hidden>
+            <small>ÚLTIMA ELIMINAÇÃO</small>
+            <div class="video-ko__ball" id="videoKoBall"></div>
+            <strong>K.O.</strong>
+            <span id="videoKoName">ELIMINADO</span>
+          </div>
+          <div class="video-final" id="videoFinal" hidden>
+            <div class="video-confetti" id="videoConfetti" aria-hidden="true"></div>
+            <header class="video-final__head"><small>FIM DE BATALHA</small><strong id="videoChampionName">CAMPEÃO</strong><span>RESULTADO FINAL</span></header>
+            <div class="video-podiums">
+              <section class="video-podium-card video-podium-card--survival"><small>◆ BATTLE ROYALE</small><h2>ÚLTIMOS SOBREVIVENTES</h2><div class="video-podium" id="videoSurvivalPodium"></div></section>
+            </div>
+          </div>
+        </div>
+
+        <aside class="queue-panel" aria-label="Fila de entrada">
+          <div class="queue-head">
+            <div><small id="queueSubtitle">AGUARDANDO VAGA</small><strong id="queueTitle">FILA DE ENTRADA</strong></div>
+            <span id="queueCount">0</span>
+          </div>
+          <div class="next-label" id="nextLabel"><span>▼</span> PRÓXIMO JOGADOR</div>
+          <ol id="queueList"></ol>
+          <div class="queue-empty" id="queueEmpty">A fila está vazia</div>
+        </aside>
+
+        <aside class="ranking-panel" aria-label="Ranking da sessão">
+          <div class="ranking-head">
+            <div><small id="rankingSubtitle">MAIORES PONTUAÇÕES</small><strong id="rankingTitle">TOP 10 DA LIVE</strong></div>
+            <span>★</span>
+          </div>
+          <ol id="rankingList"></ol>
+          <div class="ranking-empty" id="rankingEmpty">O ranking começa com o primeiro dano</div>
+          <div class="score-rule"><b>1</b> ponto por dano <span>+</span> <b>100</b> por eliminação</div>
+        </aside>
+      </section>
+
+      <footer class="controls">
+        <button class="button button--primary" id="pauseButton">Ⅱ PAUSAR</button>
+        <button class="button button--dummy" id="dummyTestButton">◎ BONECO DE TESTE</button>
+        <button class="button button--escanor" id="escanorTestButton">☀ TESTAR ESCANOR</button>
+        <button class="button button--bomberman" id="bombermanTestButton">● TESTAR BOMBERMAN</button>
+        <button class="button button--hitsugaya" id="hitsugayaTestButton">❄ TESTAR HITSUGAYA</button>
+        <button class="button button--killua" id="killuaTestButton">⚡ TESTAR KILLUA</button>
+        <button class="button button--isagi" id="isagiTestButton">⚽ TESTAR ISAGI</button>
+        <button class="button button--midoriya" id="midoriyaTestButton">☄ TESTAR MIDORIYA</button>
+        <button class="button button--rudeus" id="rudeusTestButton">◉ TESTAR RUDEUS</button>
+        <button class="button button--kirito" id="kiritoTestButton">⚔ TESTAR KIRITO</button>
+        <button class="button button--lelouch" id="lelouchTestButton">◉ TESTAR LELOUCH</button>
+        <button class="button button--saitama" id="saitamaTestButton">✊ TESTAR SAITAMA</button>
+        <button class="button button--zenitsu" id="zenitsuTestButton">ϟ TESTAR ZENITSU</button>
+        <button class="button button--megumin" id="meguminTestButton">✹ TESTAR MEGUMIN</button>
+        <button class="button button--yor" id="yorTestButton">✦ TESTAR YOR</button>
+        <button class="button button--thorfinn" id="thorfinnTestButton">☮ TESTAR THORFINN</button>
+        <button class="button button--singed" id="singedTestButton">☠ TESTAR SINGED</button>
+        <button class="button button--subaru" id="subaruTestButton">↶ TESTAR SUBARU</button>
+        <button class="button button--genos" id="genosTestButton">🔥 TESTAR GENOS</button>
+        <button class="button button--sung" id="sungTestButton">♛ TESTAR SUNG</button>
+        <button class="button button--tanjiro" id="tanjiroTestButton">🌊 TESTAR TANJIRO</button>
+        <button class="button button--itadori" id="itadoriTestButton">◈ TESTAR ITADORI</button>
+        <button class="button button--shikamaru" id="shikamaruTestButton">影 TESTAR SHIKAMARU</button>
+        <button class="button button--nami" id="namiTestButton">☁ TESTAR NAMI</button>
+        <button class="button button--metalbat" id="metalBatTestButton">⚾ TESTAR METAL BAT</button>
+        <button class="button button--ichigo" id="ichigoTestButton">⚔ TESTAR ICHIGO</button>
+        <button class="button button--luffy" id="luffyTestButton">👊 TESTAR LUFFY</button>
+        <button class="button button--denji" id="denjiTestButton">⛓ TESTAR DENJI</button>
+        <button class="button button--eren" id="erenTestButton">⚡ TESTAR EREN</button>
+        <button class="button button--naruto" id="narutoTestButton">✹ TESTAR NARUTO</button>
+        <button class="button button--pikachu" id="pikachuTestButton">ϟ TESTAR PIKACHU</button>
+        <button class="button button--edward" id="edwardTestButton">⌬ TESTAR EDWARD</button>
+        <button class="button button--rimuru" id="rimuruTestButton">◉ TESTAR RIMURU</button>
+        <button class="button button--goku" id="gokuTestButton">☄ TESTAR GOKU</button>
+        <button class="button button--gojo" id="gojoTestButton">◌ TESTAR GOJO</button>
+        <button class="button button--minato" id="minatoTestButton">ϟ TESTAR MINATO</button>
+        <button class="button button--cain" id="cainTestButton">✥ TESTAR CAIN</button>
+        <button class="button" id="removeButton">− TESTAR SAÍDA</button>
+        <button class="button" id="clearButton">⌫ LIMPAR ARENA</button>
+        <label class="speed-control">VELOCIDADE
+          <select id="speedSelect"><option value="0.75">0,75×</option><option value="1" selected>1×</option><option value="1.5">1,5×</option></select>
+        </label>
+      </footer>
+    </main>
+    <section class="video-tools" aria-label="Controles do modo vídeo">
+      <div class="video-tools__row">
+        <div class="video-tools__copy"><small>FORA DO ENQUADRAMENTO</small><strong>Abertura automática do vídeo</strong><span id="videoBattleStatus">35 personagens • 6 sorteios • atributos equalizados</span></div>
+        <button class="video-record-button" id="videoRecordButton">● GRAVAR VÍDEO</button>
+        <button id="videoGenerateButton">✦ INICIAR SORTEIO</button>
+        <button id="videoPauseButton">Ⅱ PAUSAR</button>
+      </div>
+      <div class="video-player-setup">
+        <div class="video-player-setup__head"><strong>JOGADORES E PERSONAGENS</strong><span>Nome, avatar e personagem são opcionais • ALEATÓRIO mantém o sorteio livre</span></div>
+        <div class="video-player-fields">
+          <div class="video-player-slot" data-player-slot><button class="video-player-avatar" type="button" aria-label="Enviar avatar do jogador 1"><span>01</span><img alt="" hidden /></button><input class="video-player-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden /><div class="video-player-details"><input class="video-player-name" maxlength="120" placeholder="@jogador_1 (opcional)" /><div class="video-player-character-row"><select class="video-player-character" aria-label="Personagem do jogador 1"></select><label class="video-player-impact"><input class="video-player-impact-toggle" type="checkbox" /><span>IMPACTO</span></label></div><small class="video-player-status">Avatar opcional</small></div><button class="video-player-search" type="button">BUSCAR</button></div>
+          <div class="video-player-slot" data-player-slot><button class="video-player-avatar" type="button" aria-label="Enviar avatar do jogador 2"><span>02</span><img alt="" hidden /></button><input class="video-player-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden /><div class="video-player-details"><input class="video-player-name" maxlength="120" placeholder="@jogador_2 (opcional)" /><div class="video-player-character-row"><select class="video-player-character" aria-label="Personagem do jogador 2"></select><label class="video-player-impact"><input class="video-player-impact-toggle" type="checkbox" /><span>IMPACTO</span></label></div><small class="video-player-status">Avatar opcional</small></div><button class="video-player-search" type="button">BUSCAR</button></div>
+          <div class="video-player-slot" data-player-slot><button class="video-player-avatar" type="button" aria-label="Enviar avatar do jogador 3"><span>03</span><img alt="" hidden /></button><input class="video-player-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden /><div class="video-player-details"><input class="video-player-name" maxlength="120" placeholder="@jogador_3 (opcional)" /><div class="video-player-character-row"><select class="video-player-character" aria-label="Personagem do jogador 3"></select><label class="video-player-impact"><input class="video-player-impact-toggle" type="checkbox" /><span>IMPACTO</span></label></div><small class="video-player-status">Avatar opcional</small></div><button class="video-player-search" type="button">BUSCAR</button></div>
+          <div class="video-player-slot" data-player-slot><button class="video-player-avatar" type="button" aria-label="Enviar avatar do jogador 4"><span>04</span><img alt="" hidden /></button><input class="video-player-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden /><div class="video-player-details"><input class="video-player-name" maxlength="120" placeholder="@jogador_4 (opcional)" /><div class="video-player-character-row"><select class="video-player-character" aria-label="Personagem do jogador 4"></select><label class="video-player-impact"><input class="video-player-impact-toggle" type="checkbox" /><span>IMPACTO</span></label></div><small class="video-player-status">Avatar opcional</small></div><button class="video-player-search" type="button">BUSCAR</button></div>
+          <div class="video-player-slot" data-player-slot><button class="video-player-avatar" type="button" aria-label="Enviar avatar do jogador 5"><span>05</span><img alt="" hidden /></button><input class="video-player-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden /><div class="video-player-details"><input class="video-player-name" maxlength="120" placeholder="@jogador_5 (opcional)" /><div class="video-player-character-row"><select class="video-player-character" aria-label="Personagem do jogador 5"></select><label class="video-player-impact"><input class="video-player-impact-toggle" type="checkbox" /><span>IMPACTO</span></label></div><small class="video-player-status">Avatar opcional</small></div><button class="video-player-search" type="button">BUSCAR</button></div>
+          <div class="video-player-slot" data-player-slot><button class="video-player-avatar" type="button" aria-label="Enviar avatar do jogador 6"><span>06</span><img alt="" hidden /></button><input class="video-player-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden /><div class="video-player-details"><input class="video-player-name" maxlength="120" placeholder="@jogador_6 (opcional)" /><div class="video-player-character-row"><select class="video-player-character" aria-label="Personagem do jogador 6"></select><label class="video-player-impact"><input class="video-player-impact-toggle" type="checkbox" /><span>IMPACTO</span></label></div><small class="video-player-status">Avatar opcional</small></div><button class="video-player-search" type="button">BUSCAR</button></div>
+        </div>
+        <div class="video-participant-tools">
+          <section class="video-participant-library" aria-labelledby="videoParticipantLibraryTitle">
+            <div class="video-participant-library__head"><div><strong id="videoParticipantLibraryTitle">PARTICIPANTES SALVOS</strong><span>Toque para preencher o primeiro slot vazio</span></div><div class="video-participant-library__actions"><button id="videoSlotsClear" type="button">LIMPAR 6 SLOTS</button><button id="videoParticipantsReset" type="button" disabled title="Desativado por enquanto">LIMPAR PESSOAS</button></div></div>
+            <div class="video-participant-list" id="videoParticipantList"><span class="video-participant-empty">Busque o primeiro avatar para salvar uma pessoa.</span></div>
+            <small class="video-participant-feedback" id="videoParticipantFeedback" aria-live="polite"></small>
+          </section>
+          <section class="video-caption-builder" aria-labelledby="videoCaptionTitle">
+            <div class="video-caption-builder__head"><div><strong id="videoCaptionTitle">DESCRIÇÃO DO TIKTOK</strong><span>Atualizada pelos nomes dos seis slots</span></div><button id="videoCaptionCopy" type="button">COPIAR</button></div>
+            <textarea id="videoParticipantsCaption" rows="5" spellcheck="false" aria-label="Participações da batalha">Participações:</textarea>
+          </section>
+        </div>
+      </div>
+    </section>
+    <dialog class="video-character-picker" id="videoCharacterPicker" aria-labelledby="videoCharacterPickerTitle">
+      <div class="video-character-picker__panel">
+        <header class="video-character-picker__head">
+          <div><small>ESCOLHA FORÇADA</small><h2 id="videoCharacterPickerTitle">PERSONAGEM DO JOGADOR 1</h2><p>Toque em um retrato para definir quem cairá no sorteio.</p></div>
+          <button id="videoCharacterPickerClose" type="button" aria-label="Fechar seleção de personagem">×</button>
+        </header>
+        <div class="video-character-picker__grid" id="videoCharacterPickerGrid"></div>
+      </div>
+    </dialog>
+    <dialog class="characters-modal" id="charactersModal" aria-labelledby="charactersModalTitle">
+      <div class="characters-modal__panel">
+        <header class="characters-modal__head">
+          <div><small>GUIA DA ARENA</small><h2 id="charactersModalTitle">TODOS OS PERSONAGENS</h2><p>35 lutadores divididos pelas três categorias de doação.</p></div>
+          <button id="charactersModalClose" type="button" aria-label="Fechar lista de personagens">×</button>
+        </header>
+        <div class="character-audio-preview">
+          <span class="character-audio-preview__icon" aria-hidden="true">♪</span>
+          <div class="character-audio-preview__copy"><small>PRÉVIA SONORA</small><strong id="characterAudioName">ESCOLHA UM PERSONAGEM</strong><span id="characterAudioStatus">Clique em um card para ouvir sua apresentação.</span></div>
+          <label class="character-audio-volume"><span>VOLUME</span><input id="characterAudioVolume" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="Volume da prévia sonora" /></label>
+          <button class="character-audio-replay" id="characterAudioReplay" type="button" disabled>↻ REPETIR</button>
+          <audio id="characterPreviewAudio" preload="none"></audio>
+        </div>
+        <div class="characters-gallery" id="charactersGallery"></div>
+      </div>
+    </dialog>
+    <script src="./app.js?v=20261115-08"></script>
+  </body>
+</html>
