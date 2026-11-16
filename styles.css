@@ -304,3 +304,9 @@ body.mode-live #liveRankingList b,body.mode-live #liveRankingList small{width:10
 body.mode-live #liveRankingList b{font-size:clamp(7px,1.05dvh,12px);font-weight:900;letter-spacing:-.015em}
 body.mode-live #liveRankingList small{font-size:clamp(7px,.96dvh,11px);font-weight:900}
 body.mode-live #liveRankingList li:nth-child(1) b{font-size:clamp(8px,1.2dvh,14px)}body.mode-live #liveRankingList li:nth-child(1) small{font-size:clamp(8px,1.08dvh,12px)}
+
+/* Janela limpa para Captura de Janela no TikTok LIVE Studio. */
+body.mode-live.live-window-capture .live-queue-simulation,body.mode-live.live-window-capture .live-bridge-monitor{display:none!important}
+body.mode-live.live-window-capture .app-shell{width:100vw;border:0;box-shadow:none}
+body.mode-live.live-window-capture .arena-layout{grid-template-rows:clamp(84px,11dvh,126px) auto minmax(clamp(72px,9.5dvh,150px),1fr);grid-template-areas:"live-roulette" "arena" "queue";align-content:stretch}
+body.mode-live.live-window-capture .queue-panel{height:100%}

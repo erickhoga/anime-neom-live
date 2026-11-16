@@ -5,7 +5,9 @@
 1. Instale o Node.js LTS caso o computador ainda não tenha o comando `node`.
 2. Dê dois cliques em `iniciar-live.bat`.
 3. Mantenha aberta a janela preta chamada **Anime Neom Clash - Ponte**.
-4. A arena abre em `http://127.0.0.1:8832/?mode=live`.
+4. A arena abre como uma janela de aplicativo 9:16, sem barra de endereço, em `http://127.0.0.1:8832/?mode=live&capture=1`.
+
+No TikTok LIVE Studio, use **Captura de janela** e selecione **Anime Neom Clash — Captura LIVE**. Não minimize essa janela durante a transmissão. O parâmetro `capture=1` remove os controles de teste externos e reaproveita o espaço vazio inferior para a fila.
 
 O painel que fica fora do enquadramento da LIVE mostra a conexão e contém cinco botões de teste:
 
