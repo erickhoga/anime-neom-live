@@ -5,9 +5,9 @@
 1. Instale o Node.js LTS caso o computador ainda não tenha o comando `node`.
 2. Dê dois cliques em `iniciar-live.bat`.
 3. Mantenha aberta a janela preta chamada **Anime Neom Clash - Ponte**.
-4. A arena abre como uma janela de aplicativo 9:16 de 540 × 960, sem barra de endereço, em `http://127.0.0.1:8832/?mode=live&capture=1`. O inicializador usa um perfil isolado para impedir que o Edge reutilize uma janela quadrada anterior.
+4. A arena de controle abre em `http://127.0.0.1:8832/?mode=live`.
 
-No TikTok LIVE Studio, use **Captura de janela** e selecione **Anime Neom Clash — Captura LIVE**. Não minimize essa janela durante a transmissão. O parâmetro `capture=1` remove os controles de teste externos e reaproveita o espaço vazio inferior para a fila.
+No TikTok LIVE Studio, use uma fonte **Link** com resolução personalizada de 1080 × 1920 e o endereço `http://127.0.0.1:8832/?mode=live&studio=1#tiktok.studio`. O parâmetro `studio=1` remove os controles externos; o palco usa a mesma base vertical do modo vídeo, com arena alta preenchendo o espaço disponível.
 
 O painel que fica fora do enquadramento da LIVE mostra a conexão e contém cinco botões de teste:
 
@@ -65,7 +65,7 @@ A área **Aguardando próximo jogador**, acima da arena, mostra a contagem no ca
 
 ## TikTok LIVE Studio
 
-Use `http://127.0.0.1:8832/?mode=live#tiktok.studio` como fonte de link da arena. O sufixo `#tiktok.studio` faz o LIVE Studio aceitar o endereço HTTP local.
+Use `http://127.0.0.1:8832/?mode=live&studio=1#tiktok.studio` como fonte de link da arena. O sufixo `#tiktok.studio` faz o LIVE Studio aceitar o endereço HTTP local.
 
 Adicione também a URL da **Screen 1** do TikFinity como uma segunda fonte Link, mantenha-a habilitada e posicione-a atrás da arena. Ela precisa aparecer como `Online` no TikFinity para executar Actions & Events.
 
