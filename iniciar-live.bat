@@ -10,7 +10,15 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo Atualizando a ponte do TikFinity...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/erickhoga/anime-neom-live/main/live-bridge.mjs' -OutFile 'live-bridge.update'; if ((Get-Item 'live-bridge.update').Length -lt 1000) { throw 'Arquivo de atualizacao invalido' }; Move-Item -Force 'live-bridge.update' 'live-bridge.mjs'"
+if errorlevel 1 (
+  echo AVISO: nao foi possivel atualizar. Usando a ponte local existente.
+) else (
+  echo Ponte atualizada com sucesso.
+)
+
 start "Anime Neom Clash - Ponte" /D "%~dp0" cmd /k node live-bridge.mjs
 timeout /t 2 /nobreak >nul
-start "" "http://127.0.0.1:8832/?mode=live"
+start "" "https://erickhoga.github.io/anime-neom-live/?mode=live&bridge=local"
 exit /b 0
