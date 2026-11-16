@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=20261116-live-01" />
+    <link rel="stylesheet" href="./styles.css?v=20261116-live-bridge-03" />
   </head>
   <body class="mode-dev">
     <nav class="mode-switch-shell" aria-label="Modo de visualização">
@@ -32,6 +32,16 @@
           <button class="live-queue-simulation" id="liveQueueSimulation" type="button" aria-pressed="false">
             <span aria-hidden="true">▶</span><b>SIMULAR LIVE</b>
           </button>
+          <section class="live-bridge-monitor" id="liveBridgeMonitor" aria-live="polite">
+            <div><i id="liveBridgeDot"></i><span><b id="liveBridgeStatus">PONTE OFFLINE</b><small id="liveBridgeEvent">Abra pelo iniciar-live.bat</small></span></div>
+            <nav aria-label="Simular doações locais">
+              <button type="button" data-live-test-action="comment_join_small">EU</button>
+              <button type="button" data-live-test-action="likes_heal_50" title="50 curtidas curam 10 HP">50♥</button>
+              <button type="button" data-live-test-action="rose_join_medium">🌹</button>
+              <button type="button" data-live-test-action="mini_dino_join_large">🦖</button>
+              <button type="button" data-live-test-action="arena_explosion_200">💥</button>
+            </nav>
+          </section>
           <section class="live-ranking-summary" aria-label="Top 3 da live">
             <strong>TOP 3</strong>
             <ol id="liveRankingList"></ol>
@@ -85,6 +95,9 @@
             <strong id="liveRouletteName">SORTEANDO</strong>
             <span id="liveRouletteViewer">@jogador</span>
           </div>
+          <div class="bot-spawn-countdown" id="botSpawnCountdown" hidden>
+            <small>SPAWN DE BOT EM</small><strong id="botSpawnCountdownValue">10</strong>
+          </div>
         </div>
         <div class="arena-wrap">
           <div class="corner corner--tl"></div><div class="corner corner--tr"></div>
@@ -93,6 +106,11 @@
           <div class="arena-status"><span></span> ARENA ATIVA • MÁX. 6</div>
           <div class="empty-state" id="emptyState">
             <strong>ARENA VAZIA</strong><span>Adicione a primeira pessoa acima</span>
+          </div>
+          <div class="live-arena-explosion" id="liveArenaExplosion" hidden>
+            <i></i><i></i><i></i>
+            <strong>EXPLOSÃO!</strong>
+            <span id="liveArenaExplosionUser">@jogador limpou a arena</span>
           </div>
 
           <div class="roulette" id="roulette" hidden>
@@ -271,6 +289,6 @@
         <div class="characters-gallery" id="charactersGallery"></div>
       </div>
     </dialog>
-    <script src="./app.js?v=20261116-live-01"></script>
+    <script src="./app.js?v=20261116-live-bridge-11"></script>
   </body>
 </html>

@@ -50,10 +50,19 @@
   const characterAudioName=$('#characterAudioName'),characterAudioStatus=$('#characterAudioStatus'),characterAudioReplay=$('#characterAudioReplay'),characterAudioVolume=$('#characterAudioVolume'),characterPreviewAudio=$('#characterPreviewAudio');
   const musicToggle=$('#musicToggle'),musicSelect=$('#musicSelect');
   const liveRoulette=$('#liveRoulette'),liveRouletteTrack=$('#liveRouletteTrack'),liveRouletteName=$('#liveRouletteName'),liveRouletteViewer=$('#liveRouletteViewer');
+  const liveArenaExplosion=$('#liveArenaExplosion'),liveArenaExplosionUser=$('#liveArenaExplosionUser');
+  const botSpawnCountdown=$('#botSpawnCountdown'),botSpawnCountdownValue=$('#botSpawnCountdownValue');
   const liveRankingList=$('#liveRankingList');
   const liveQueueSimulation=$('#liveQueueSimulation');
+  const liveBridgeMonitor=$('#liveBridgeMonitor'),liveBridgeDot=$('#liveBridgeDot'),liveBridgeStatus=$('#liveBridgeStatus'),liveBridgeEvent=$('#liveBridgeEvent');
+  const liveBridgeTestButtons=[...document.querySelectorAll('[data-live-test-action]')];
   let liveQueueSimulationTimer=0,liveQueueSimulationIndex=0,liveQueueSimulationRunning=false;
-  let liveEntryPresentationTimer=0,liveEntryPresentationRun=0,liveEntryInProgress=false,pausedLiveCharacterAudio=[];
+  let activeLiveDonation=null,liveBridgeSource=null,liveBridgeRetryTimer=0;
+  const pendingLiveDonations=[],seenLiveDonationIds=new Set();
+  const LIVE_LIKE_HEAL_COOLDOWN_MS=20_000,liveLikeHealReadyAt=new Map();
+  const LIVE_BOT_IDLE_MS=10_000;
+  let liveNoHumanSince=0,liveNextBotAt=0,liveBotSpawnFlashUntil=0;
+  let liveEntryPresentationTimer=0,liveEntryPresentationRun=0,liveEntryInProgress=false,liveEntryCurrent=null,pausedLiveCharacterAudio=[];
 
   const tierConfig = {
     small:  { label:'ROLETA — DOAÇÃO PEQUENA', shortLabel:'PEQUENA', start:1,  end:10, color:'#34f4ff', heal:15, maxHp:60, damageMultiplier:.65 },
@@ -166,7 +175,7 @@
 
   function clearArenaSession() {
     stopAllCharacterAudio();
-    cancelLiveEntryPresentation(false);stopEntryVoice();stopRouletteSound();state.videoDraftId+=1;state.videoIntroActive=false;state.videoBattleStarted=false;state.videoBattleStartedAt=0;state.videoFinalPending=false;state.videoFinalShown=false;state.videoFinalDuelShown=false;state.videoFinalDuelPending=false;state.videoFinalKoShown=false;state.videoEliminationOrder=[];state.time=0;state.balls=[];state.companions=[];state.queue=[];state.projectiles=[];state.particles=[];state.floaters=[];state.profiles.clear();state.contactCooldowns.clear();state.nextId=1;state.subaruRewindUntil=0;state.sungAriseUntil=0;state.spinning=false;ui.roulette.hidden=true;ui.roulette.classList.remove('is-forced-impact');videoForcedReveal.hidden=true;ui.result.hidden=true;videoCountdown.hidden=true;videoCountdown.classList.remove('is-draw-title','is-battle');videoDuel.hidden=true;videoKo.hidden=true;videoFinal.hidden=true;videoConfetti.innerHTML='';ui.rouletteWheel.classList.remove('roulette-wheel--video-draft','roulette-wheel--upgrade');videoGenerateButton.disabled=false;videoPauseButton.disabled=false;if(musicEnabled&&musicStarted&&backgroundMusic.paused){backgroundMusic.currentTime=0;startBackgroundMusic()}syncUi();
+    cancelLiveEntryPresentation(false);stopEntryVoice();stopRouletteSound();state.videoDraftId+=1;state.videoIntroActive=false;state.videoBattleStarted=false;state.videoBattleStartedAt=0;state.videoFinalPending=false;state.videoFinalShown=false;state.videoFinalDuelShown=false;state.videoFinalDuelPending=false;state.videoFinalKoShown=false;state.videoEliminationOrder=[];state.time=0;state.balls=[];state.companions=[];state.queue=[];state.projectiles=[];state.particles=[];state.floaters=[];state.profiles.clear();state.contactCooldowns.clear();state.nextId=1;state.subaruRewindUntil=0;state.sungAriseUntil=0;state.spinning=false;liveNoHumanSince=0;liveNextBotAt=0;liveBotSpawnFlashUntil=0;botSpawnCountdown.hidden=true;ui.roulette.hidden=true;ui.roulette.classList.remove('is-forced-impact');videoForcedReveal.hidden=true;ui.result.hidden=true;videoCountdown.hidden=true;videoCountdown.classList.remove('is-draw-title','is-battle');videoDuel.hidden=true;videoKo.hidden=true;videoFinal.hidden=true;videoConfetti.innerHTML='';ui.rouletteWheel.classList.remove('roulette-wheel--video-draft','roulette-wheel--upgrade');videoGenerateButton.disabled=false;videoPauseButton.disabled=false;if(musicEnabled&&musicStarted&&backgroundMusic.paused){backgroundMusic.currentTime=0;startBackgroundMusic()}syncUi();
   }
 
   function setViewMode(mode) {
@@ -310,6 +319,23 @@
     const input=videoPlayerNameInputs[slotIndex],slot=videoPlayerSlots[slotIndex],avatar=cachedAvatar(username);input.value=`@${username}`;if(avatar)setVideoPlayerAvatar(slot,avatar,username,`@${username} salvo`);else clearVideoPlayerAvatar(slot,'Pessoa salva • busque o avatar novamente');updateVideoParticipantsCaption();input.dispatchEvent(new Event('input',{bubbles:true}));setVideoParticipantFeedback(`@${username} adicionado ao slot ${slotIndex+1}.`);input.focus();
   }
   function blobAsDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.addEventListener('load',()=>resolve(String(reader.result||'')),{once:true});reader.addEventListener('error',()=>reject(new Error('read-failed')),{once:true});reader.readAsDataURL(blob)})}
+  const liveAvatarRequests=new Map();
+  function generatedLiveAvatar(username){const palettes=[['#6d4aff','#21d4fd'],['#ff3d81','#ffbe3d'],['#00a878','#72f2b1'],['#3157d5','#9f7aea'],['#e53e3e','#ff9a44']],seed=[...username].reduce((total,char)=>total+char.charCodeAt(0),0),[from,to]=palettes[seed%palettes.length],initial=(username.replace(/^@/,'').charAt(0)||'?').toUpperCase(),svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><circle cx="64" cy="64" r="64" fill="url(#g)"/><circle cx="64" cy="64" r="54" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3"/><text x="64" y="79" text-anchor="middle" font-family="Arial,sans-serif" font-size="58" font-weight="800" fill="#fff">${initial}</text></svg>`;return`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`}
+  function preloadImageUrl(url){return new Promise((resolve,reject)=>{if(!url){reject(new Error('empty-avatar'));return}const image=new Image();image.decoding='async';image.addEventListener('load',()=>resolve(url),{once:true});image.addEventListener('error',()=>reject(new Error('avatar-load-failed')),{once:true});image.src=url;if(image.complete&&image.naturalWidth)resolve(url)})}
+  async function prepareLiveDonationAvatar(username,sourceUrl=''){
+    const stored=cachedAvatar(username);if(stored){await preloadImageUrl(stored).catch(()=>{});return stored}
+    const unavatarUrl=`https://unavatar.io/tiktok/${encodeURIComponent(username)}`;
+    const preferredUrl=sourceUrl||unavatarUrl;
+    try{return await preloadImageUrl(preferredUrl)}catch{/* Tenta o endereço público do perfil abaixo. */}
+    if(preferredUrl!==unavatarUrl){try{return await preloadImageUrl(unavatarUrl)}catch{/* Mantém a última alternativa abaixo. */}}
+    return generatedLiveAvatar(username)
+  }
+  function requestLiveDonationAvatar(username,sourceUrl=''){const key=`${username.toLowerCase()}|${sourceUrl}`;if(!liveAvatarRequests.has(key))liveAvatarRequests.set(key,prepareLiveDonationAvatar(username,sourceUrl));return liveAvatarRequests.get(key)}
+  async function readyLiveDonationAvatar(donation){
+    if(!donation||donation.isBot)return'';
+    if(!donation.avatarReady)return donation.avatarUrl||'';
+    return Promise.race([donation.avatarReady,new Promise(resolve=>setTimeout(()=>resolve(donation.avatarUrl||''),3000))]);
+  }
   function setVideoPlayerAvatar(slot,dataUrl,username='',message='Avatar pronto'){
     const image=slot.querySelector('.video-player-avatar img'),button=slot.querySelector('.video-player-avatar'),status=slot.querySelector('.video-player-status');slot.dataset.avatarUrl=dataUrl;slot.dataset.avatarUsername=username.toLowerCase();image.src=dataUrl;image.hidden=false;button.classList.add('has-avatar');slot.classList.remove('is-error');slot.classList.add('is-ready');status.textContent=message;
   }
@@ -463,12 +489,13 @@
   function closeCharactersModal() { charactersModal.close(); }
   function setButtonsDisabled(disabled) { document.querySelectorAll('.donation').forEach(button=>{button.disabled=disabled}); }
 
-  function runRoulette(tier) {
+  function runRoulette(tier,donationMeta=null) {
     if(state.spinning)return;
     const nick=sanitizeName(ui.viewer.value);
     if(!nick){ui.error.textContent='Digite o nick da pessoa antes de escolher a doação.';ui.viewer.focus();return}
+    activeLiveDonation=donationMeta;
     const activeBall=state.balls.find(ball=>!ball.isClone&&ball.nick.toLowerCase()===nick.toLowerCase());
-    if(activeBall){healBall(activeBall,tier);return}
+    if(activeBall){healBall(activeBall,tier,donationMeta);return}
     ui.error.textContent=''; state.spinning=true; setButtonsDisabled(true);
     spinRoulette(nick,tier);
   }
@@ -488,7 +515,7 @@
   }
 
   function spinRoulette(nick,tier) {
-    const config=tierConfig[tier],characters=characterList(tier),upgradeTier=tier==='small'?'medium':tier==='medium'?'large':null,entries=upgradeTier?[...characters,'upgrade']:characters,segmentAngle=360/entries.length,selectedIndex=Math.floor(Math.random()*entries.length),selected=entries[selectedIndex],wheelColors=entries.map((entry,index)=>`${entry==='upgrade'?'#f6bd32':index%2?config.color:'#252947'} ${index*segmentAngle}deg ${(index+1)*segmentAngle}deg`).join(',');
+    const config=tierConfig[tier],characters=characterList(tier),upgradeTier=activeLiveDonation?.isBot?null:tier==='small'?'medium':tier==='medium'?'large':null,entries=upgradeTier?[...characters,'upgrade']:characters,segmentAngle=360/entries.length,selectedIndex=Math.floor(Math.random()*entries.length),selected=entries[selectedIndex],wheelColors=entries.map((entry,index)=>`${entry==='upgrade'?'#f6bd32':index%2?config.color:'#252947'} ${index*segmentAngle}deg ${(index+1)*segmentAngle}deg`).join(',');
     if(state.viewMode==='live'){if(selected!=='upgrade')prepareEntryVoice(selected);spinLiveHorizontalRoulette(nick,tier,config,entries,selected,upgradeTier);return}
     ui.rouletteWheel.classList.remove('roulette-wheel--upgrade');ui.rouletteWheel.style.setProperty('--segment-angle',`${segmentAngle}deg`);ui.rouletteWheel.style.setProperty('--wheel-start',`${-segmentAngle/2}deg`);ui.rouletteWheel.style.background=`conic-gradient(from ${-segmentAngle/2}deg,${wheelColors})`;
     ui.rouletteLabels.innerHTML=entries.map((entry,index)=>{const rotation=index*segmentAngle;if(entry==='upgrade')return`<span class="roulette-label roulette-label--upgrade" style="--segment-color:#f6bd32;transform:rotate(${rotation}deg) translateY(-80px)"><span class="roulette-upgrade-glow"></span><span class="roulette-upgrade-icon">⬆</span><b>UPGRADE</b><small>PRÓXIMO TIER</small></span>`;const portrait=roulettePortrait(entry),segmentColor=index%2?config.color:'#333858';return`<span class="roulette-label" style="--segment-color:${segmentColor};transform:rotate(${rotation}deg) translateY(-80px)"><span class="roulette-portrait" style="background-image:linear-gradient(180deg,rgba(3,5,15,.06),rgba(3,5,15,.38) 52%,rgba(3,5,15,.94)),url('${portrait.url}');background-position:${portrait.position};background-size:${portrait.size}"></span><b>${characterDisplayName(entry)}</b><small>${entry.toUpperCase()}</small></span>`}).join('');
@@ -510,8 +537,9 @@
   }
 
   function showResult(nick,character,tier) {
-    const config=tierConfig[tier]; const goesToQueue=playerBallCount()>=MAX_BALLS;
-    if(state.viewMode==='live'){liveRoulette.classList.add('is-result');liveRouletteName.textContent=characterDisplayName(character);liveRouletteViewer.textContent=`@${nick}`;setTimeout(()=>{liveRoulette.hidden=true;liveRoulette.classList.remove('is-result','is-upgrade');if(goesToQueue){enqueuePlayer(nick,character,tier);ui.viewer.value='';state.spinning=false;setButtonsDisabled(false)}else startLiveArenaEntry({nick,character,tier},()=>{ui.viewer.value=''})},900);return}
+    const config=tierConfig[tier],donationMeta=activeLiveDonation,isBot=donationMeta?.isBot===true;
+    if(state.viewMode==='live'){liveRoulette.classList.add('is-result');liveRouletteName.textContent=characterDisplayName(character);liveRouletteViewer.textContent=`@${nick}`;setTimeout(async()=>{const avatarUrl=await readyLiveDonationAvatar(donationMeta),goesToQueue=playerBallCount()>=MAX_BALLS;liveRoulette.hidden=true;liveRoulette.classList.remove('is-result','is-upgrade');activeLiveDonation=null;if(goesToQueue){enqueuePlayer(nick,character,tier,avatarUrl,isBot);ui.viewer.value='';state.spinning=false;setButtonsDisabled(false)}else startLiveArenaEntry({nick,character,tier,avatarUrl,isBot},()=>{ui.viewer.value=''})},900);return}
+    const goesToQueue=playerBallCount()>=MAX_BALLS;
     ui.rouletteWheel.classList.remove('roulette-wheel--upgrade');ui.roulette.hidden=true;ui.resultLabel.textContent=goesToQueue?'ARENA CHEIA • ENTRADA NA FILA':'PERSONAGEM SORTEADO';ui.resultCharacter.textContent=`${characterDisplayName(character)} • ${character.toUpperCase()}`;ui.resultCharacter.style.color=character==='char11'?'#ffbd42':character==='char12'?'#ff8ac2':character==='char13'?'#9cecff':character==='char14'?'#91dcff':character==='char15'?'#77a9ff':character==='char16'?'#62f5ba':character==='char17'?'#b4ef72':character==='char21'?'#ff5269':character==='char22'?'#ffc44a':character==='char23'?'#c7cdd5':character==='char24'?'#74ffa9':character==='char25'?'#62d7ff':character==='char26'?'#ffe342':character==='char27'?'#7cecff':character==='char28'?'#9cecff':character==='char29'?'#ffd45e':character==='char30'?'#c7a7ff':character==='char31'?'#b6d68d':character==='char32'?'#75e1ff':character==='char33'?'#ffe36b':character==='char34'?'#d7c9ff':character==='char35'?'#ff765f':config.color;ui.resultViewer.textContent=goesToQueue?`@${nick} está aguardando uma vaga`:`@${nick} entrou na arena!`;ui.result.hidden=false;
     if(character==='char18'){ui.resultCharacter.textContent='KIRITO • CHAR18';ui.resultCharacter.style.color='#70e8ff'}
     if(character==='char19'){ui.resultCharacter.textContent='LELOUCH • CHAR19';ui.resultCharacter.style.color='#ff4c7d'}
@@ -529,13 +557,14 @@
     setTimeout(()=>{ui.result.hidden=true;if(goesToQueue)enqueuePlayer(nick,character,tier);else spawnBall(nick,character,tier);ui.viewer.value='';state.spinning=false;setButtonsDisabled(false)},900);
   }
 
-  function healBall(ball,tier) {
+  function healBall(ball,tier,donationMeta=null) {
     const config=tierConfig[tier]; state.spinning=true;setButtonsDisabled(true);ui.error.textContent='';
-    const previous=ball.hp;ball.hp=Math.min(ball.maxHp,ball.hp+config.heal);const restored=Math.round(ball.hp-previous);
+    if(donationMeta?.avatarUrl)ball.profile.avatarUrl=donationMeta.avatarUrl;
+    const healAmount=donationMeta?.healAmount>0?donationMeta.healAmount:config.heal,previous=ball.hp;ball.hp=Math.min(ball.maxHp,ball.hp+healAmount);const restored=Math.round(ball.hp-previous);
     if(state.viewMode==='live'){
       createBurst(ball.x,ball.y,'#66ffa8',10);state.floaters.push({x:ball.x,y:ball.y-ball.radius-10,color:'#82ffb5',text:restored?`+${restored} HP`:'VIDA CHEIA',life:1.05,maxLife:1.05});
       liveRoulette.hidden=false;liveRoulette.classList.remove('is-result','is-upgrade');liveRoulette.classList.add('is-heal');liveRoulette.style.setProperty('--live-tier-color','#66ffa8');liveRouletteTrack.style.transition='none';liveRouletteTrack.style.transform='none';liveRouletteTrack.innerHTML=`<span class="live-heal-feedback"><i>+</i><b>${Math.round(ball.hp)}/${Math.round(ball.maxHp)} HP</b></span>`;liveRouletteName.textContent=restored?`CURA +${restored} HP`:'VIDA CHEIA';liveRouletteViewer.textContent=`@${ball.nick}`;
-      setTimeout(()=>{liveRoulette.hidden=true;liveRoulette.classList.remove('is-heal');ui.viewer.value='';state.spinning=false;setButtonsDisabled(false)},900);return
+      setTimeout(()=>{liveRoulette.hidden=true;liveRoulette.classList.remove('is-heal');ui.viewer.value='';activeLiveDonation=null;state.spinning=false;setButtonsDisabled(false)},900);return
     }
     createBurst(ball.x,ball.y,'#66ffa8',24);ui.resultLabel.textContent=`DOAÇÃO ${config.shortLabel} • CURA`;ui.resultCharacter.textContent=restored?`+${restored} HP`:'VIDA CHEIA';ui.resultCharacter.style.color='#66ffa8';ui.resultViewer.textContent=`@${ball.nick} continua com ${Math.round(ball.hp)}/${ball.maxHp} HP`;ui.result.hidden=false;
     setTimeout(()=>{ui.result.hidden=true;ui.viewer.value='';state.spinning=false;setButtonsDisabled(false)},900);
@@ -550,17 +579,17 @@
     return{x:best.x,y:best.y};
   }
 
-  function getProfile(nick,color,character,avatarUrl='') {
+  function getProfile(nick,color,character,avatarUrl='',isBot=false) {
     const key=nick.toLowerCase();
-    if(!state.profiles.has(key))state.profiles.set(key,{nick,color,score:0,damage:0,kos:0,entries:0,active:false,lastCharacter:character,eliminatedAt:0,avatarUrl:''});
-    const profile=state.profiles.get(key);profile.nick=nick;profile.color=color;profile.entries+=1;profile.active=true;profile.lastCharacter=character;if(avatarUrl)profile.avatarUrl=avatarUrl;return profile;
+    if(!state.profiles.has(key))state.profiles.set(key,{nick,color,score:0,damage:0,kos:0,entries:0,active:false,lastCharacter:character,eliminatedAt:0,avatarUrl:'',isBot});
+    const profile=state.profiles.get(key);profile.nick=nick;profile.color=color;profile.entries+=1;profile.active=true;profile.lastCharacter=character;profile.isBot=isBot;if(avatarUrl)profile.avatarUrl=avatarUrl;return profile;
   }
 
-  function spawnBall(nick,character,tier,avatarUrl='') {
-    if(playerBallCount()>=MAX_BALLS){enqueuePlayer(nick,character,tier);return}
+  function spawnBall(nick,character,tier,avatarUrl='',isBot=false) {
+    if(playerBallCount()>=MAX_BALLS){enqueuePlayer(nick,character,tier,avatarUrl,isBot);return}
     const config=tierConfig[tier]; const number=Number(character.slice(4)); const color=character==='char2'?'#e43f45':character==='char3'?'#c82845':character==='char4'?'#94c96b':character==='char5'?'#53c957':character==='char6'?'#8e4fc5':character==='char7'?'#f08a32':character==='char8'?'#4b74e4':character==='char9'?'#31bfcf':character==='char10'?'#db4059':character==='char11'?'#f5a623':character==='char12'?'#eb65a8':character==='char13'?'#68dff7':character==='char14'?'#55bfff':character==='char15'?'#397dff':character==='char16'?'#2bdd9e':character==='char17'?'#87c943':character==='char21'?'#ff344f':character==='char22'?'#ffb23f':character==='char23'?'#aeb6c2':character==='char24'?'#5fe594':character==='char25'?'#38bff8':character==='char26'?'#ffe342':character==='char27'?'#d8b34b':character==='char28'?'#65d9ff':character==='char29'?'#ffb52f':character==='char30'?'#a973ff':character==='char31'?'#749d55':character==='char32'?'#f08a32':character==='char33'?'#ffd94a':character==='char34'?'#8d72ff':character==='char35'?'#c43e35':palette[(number-1)%palette.length]; const radius=Math.max(27,state.width*.055); const angle=Math.random()*Math.PI*2; const moveSpeed=state.width*.18;const position=findFreePosition(radius);
-    const profile=getProfile(nick,color,character,avatarUrl);
-    const liveHpMultiplier=state.viewMode==='live'?2:1,id=state.nextId++;const ball={id,nick,character,tier,color,accent:config.color,profile,radius,baseRadius:radius,baseMoveSpeed:moveSpeed,moveSpeed,hp:config.maxHp*liveHpMultiplier,maxHp:config.maxHp*liveHpMultiplier,x:position.x,y:position.y,vx:Math.cos(angle)*moveSpeed,vy:Math.sin(angle)*moveSpeed,rotation:0,dead:false,isClone:false,cloneFamilyId:character==='char25'?id:null,nextCloneAt:character==='char25'?state.time+11:Infinity,nextPowerAt:character==='char25'?state.time+18:character==='char11'?state.time+14:character==='char12'?state.time+3.5:character==='char17'?state.time+8:character==='char13'||character==='char14'||character==='char26'||character==='char28'||character==='char29'?state.time+12:character==='char30'?state.time+5:character==='char16'||character==='char21'||character==='char22'?state.time+10:Infinity,sawStartedAt:state.time,sawActive:character==='char23',iceWingsUntil:0,hitsugayaSecondWaveAt:Infinity,killuaActiveUntil:0,killuaDamageMultiplier:.5,killuaComboHits:0,soccerBallSpawned:false,nextSoccerBallAt:character==='char15'?state.time+5:Infinity,isagiAudioReadyAt:0,midoriyaState:'idle',midoriyaChargeUntil:0,midoriyaDashUntil:0,rudeusForesightUntil:0,rudeusNextDodgeAt:0,rudeusDodgeUntil:0,rudeusDodges:0,rudeusAfterimageUntil:0,rudeusVisionUntil:0,rudeusVisionX:0,rudeusVisionY:0,erenForm:character==='char24'?1:0,nextErenFormAt:character==='char24'?state.time+10:Infinity,gojoCycleIndex:-1,gojoMode:'none',gojoActiveUntil:0,gojoForceTargetIds:new Set(),gojoPurpleCharging:false,gojoPurpleReleaseAt:Infinity};
+    const profile=getProfile(nick,color,character,avatarUrl,isBot);
+    const liveHpMultiplier=state.viewMode==='live'?2:1,id=state.nextId++;const ball={id,nick,character,tier,color,accent:config.color,profile,radius,baseRadius:radius,baseMoveSpeed:moveSpeed,moveSpeed,hp:config.maxHp*liveHpMultiplier,maxHp:config.maxHp*liveHpMultiplier,x:position.x,y:position.y,vx:Math.cos(angle)*moveSpeed,vy:Math.sin(angle)*moveSpeed,rotation:0,dead:false,isBot,isClone:false,cloneFamilyId:character==='char25'?id:null,nextCloneAt:character==='char25'?state.time+11:Infinity,nextPowerAt:character==='char25'?state.time+18:character==='char11'?state.time+14:character==='char12'?state.time+3.5:character==='char17'?state.time+8:character==='char13'||character==='char14'||character==='char26'||character==='char28'||character==='char29'?state.time+12:character==='char30'?state.time+5:character==='char16'||character==='char21'||character==='char22'?state.time+10:Infinity,sawStartedAt:state.time,sawActive:character==='char23',iceWingsUntil:0,hitsugayaSecondWaveAt:Infinity,killuaActiveUntil:0,killuaDamageMultiplier:.5,killuaComboHits:0,soccerBallSpawned:false,nextSoccerBallAt:character==='char15'?state.time+5:Infinity,isagiAudioReadyAt:0,midoriyaState:'idle',midoriyaChargeUntil:0,midoriyaDashUntil:0,rudeusForesightUntil:0,rudeusNextDodgeAt:0,rudeusDodgeUntil:0,rudeusDodges:0,rudeusAfterimageUntil:0,rudeusVisionUntil:0,rudeusVisionX:0,rudeusVisionY:0,erenForm:character==='char24'?1:0,nextErenFormAt:character==='char24'?state.time+10:Infinity,gojoCycleIndex:-1,gojoMode:'none',gojoActiveUntil:0,gojoForceTargetIds:new Set(),gojoPurpleCharging:false,gojoPurpleReleaseAt:Infinity};
     if(character==='dummy'){ball.hp=9999;ball.maxHp=9999;ball.accent='#ffd84d';ball.isTestDummy=true;ball.nextPowerAt=Infinity}
     if(character==='char18'){ball.nextPowerAt=state.time+10;ball.kiritoActiveUntil=0}
     if(character==='char19'){ball.nextPowerAt=state.time+10;ball.geassAuraUntil=0}
@@ -590,8 +619,8 @@
     state.balls.push(ball);if(character==='char27')spawnAlCompanion(ball);createBurst(ball.x,ball.y,color,28);syncUi();
   }
 
-  function enqueuePlayer(nick,character,tier) {
-    const number=Number(character.slice(4));state.queue.push({nick,character,tier,color:character==='char2'?'#e43f45':character==='char3'?'#c82845':character==='char4'?'#94c96b':character==='char5'?'#53c957':character==='char6'?'#8e4fc5':character==='char7'?'#f08a32':character==='char8'?'#4b74e4':character==='char9'?'#31bfcf':character==='char10'?'#db4059':character==='char11'?'#f5a623':character==='char12'?'#eb65a8':character==='char13'?'#68dff7':character==='char14'?'#55bfff':character==='char15'?'#397dff':character==='char16'?'#2bdd9e':character==='char17'?'#87c943':character==='char21'?'#ff344f':character==='char22'?'#ffb23f':character==='char23'?'#aeb6c2':character==='char24'?'#5fe594':character==='char25'?'#38bff8':character==='char26'?'#ffe342':character==='char27'?'#d8b34b':character==='char28'?'#65d9ff':character==='char29'?'#ffb52f':character==='char30'?'#a973ff':character==='char31'?'#749d55':character==='char32'?'#f08a32':character==='char33'?'#ffd94a':character==='char34'?'#8d72ff':character==='char35'?'#c43e35':palette[(number-1)%palette.length]});syncUi();
+  function enqueuePlayer(nick,character,tier,avatarUrl='',isBot=false) {
+    const number=Number(character.slice(4));state.queue.push({nick,character,tier,avatarUrl,isBot,color:character==='char2'?'#e43f45':character==='char3'?'#c82845':character==='char4'?'#94c96b':character==='char5'?'#53c957':character==='char6'?'#8e4fc5':character==='char7'?'#f08a32':character==='char8'?'#4b74e4':character==='char9'?'#31bfcf':character==='char10'?'#db4059':character==='char11'?'#f5a623':character==='char12'?'#eb65a8':character==='char13'?'#68dff7':character==='char14'?'#55bfff':character==='char15'?'#397dff':character==='char16'?'#2bdd9e':character==='char17'?'#87c943':character==='char21'?'#ff344f':character==='char22'?'#ffb23f':character==='char23'?'#aeb6c2':character==='char24'?'#5fe594':character==='char25'?'#38bff8':character==='char26'?'#ffe342':character==='char27'?'#d8b34b':character==='char28'?'#65d9ff':character==='char29'?'#ffb52f':character==='char30'?'#a973ff':character==='char31'?'#749d55':character==='char32'?'#f08a32':character==='char33'?'#ffd94a':character==='char34'?'#8d72ff':character==='char35'?'#c43e35':palette[(number-1)%palette.length]});syncUi();
   }
 
   function pauseCharacterAudioForLiveEntry() {
@@ -603,19 +632,19 @@
   }
 
   function cancelLiveEntryPresentation(resumePowerAudio=true) {
-    liveEntryPresentationRun+=1;if(liveEntryPresentationTimer){clearTimeout(liveEntryPresentationTimer);liveEntryPresentationTimer=0}liveEntryInProgress=false;videoEntryReveal.hidden=true;if(resumePowerAudio)resumeCharacterAudioAfterLiveEntry();else pausedLiveCharacterAudio=[];
+    liveEntryPresentationRun+=1;if(liveEntryPresentationTimer){clearTimeout(liveEntryPresentationTimer);liveEntryPresentationTimer=0}liveEntryInProgress=false;liveEntryCurrent=null;videoEntryReveal.hidden=true;if(resumePowerAudio)resumeCharacterAudioAfterLiveEntry();else pausedLiveCharacterAudio=[];
   }
 
   function startLiveArenaEntry(entry,onComplete,resumeWhenDone=state.running) {
-    if(state.viewMode!=='live'){spawnBall(entry.nick,entry.character,entry.tier,entry.avatarUrl||'');onComplete?.();return}
+    if(state.viewMode!=='live'){spawnBall(entry.nick,entry.character,entry.tier,entry.avatarUrl||'',entry.isBot===true);onComplete?.();return}
     if(liveEntryInProgress){state.queue.unshift(entry);syncUi();return}
-    const run=++liveEntryPresentationRun,audio=prepareEntryVoice(entry.character);liveEntryInProgress=true;state.running=false;state.spinning=true;setButtonsDisabled(true);pauseCharacterAudioForLiveEntry();
+    const run=++liveEntryPresentationRun,audio=prepareEntryVoice(entry.character);liveEntryInProgress=true;liveEntryCurrent=entry;state.running=false;state.spinning=true;setButtonsDisabled(true);pauseCharacterAudioForLiveEntry();
     const entryDuration=playEntryVoice(entry.character,audio);showVideoEntryReveal(entry.character,`@${entry.nick}`,entry.avatarUrl||'',audio,entryDuration);
     let completed=false;
     const finish=()=>{
-      if(completed||run!==liveEntryPresentationRun)return;completed=true;if(liveEntryPresentationTimer){clearTimeout(liveEntryPresentationTimer);liveEntryPresentationTimer=0}stopEntryVoice();liveEntryInProgress=false;
+      if(completed||run!==liveEntryPresentationRun)return;completed=true;if(liveEntryPresentationTimer){clearTimeout(liveEntryPresentationTimer);liveEntryPresentationTimer=0}stopEntryVoice();liveEntryInProgress=false;liveEntryCurrent=null;
       if(state.viewMode!=='live'){resumeCharacterAudioAfterLiveEntry();state.spinning=false;setButtonsDisabled(false);onComplete?.();return}
-      if(playerBallCount()<MAX_BALLS)spawnBall(entry.nick,entry.character,entry.tier,entry.avatarUrl||'');else state.queue.unshift(entry);
+      if(playerBallCount()<MAX_BALLS)spawnBall(entry.nick,entry.character,entry.tier,entry.avatarUrl||'',entry.isBot===true);else state.queue.unshift(entry);
       onComplete?.();
       if(playerBallCount()<MAX_BALLS&&state.queue.length){const next=state.queue.shift();startLiveArenaEntry(next,null,resumeWhenDone);return}
       resumeCharacterAudioAfterLiveEntry();state.running=resumeWhenDone;state.lastTime=performance.now();state.spinning=false;setButtonsDisabled(false);syncUi();
@@ -623,7 +652,7 @@
     audio.addEventListener('ended',()=>setTimeout(finish,220),{once:true});audio.addEventListener('error',finish,{once:true});liveEntryPresentationTimer=setTimeout(finish,Math.max(2600,Math.min(8000,entryDuration+650)));
   }
 
-  const liveQueueDemoNames=['akemi','joaopedro','aninha_22','kaiozin','mari_chan','lucas.ff','bia_otaku','renan_x','sakura_br','pedrin_07','juhzinha','gabrielzin','mika_cos','rafa_anime','yumi_san','leo_shonen','nanda_chan','vini_kun'];
+  const liveQueueDemoNames=['tiktok','netflix','crunchyroll','marvel','nasa','nba','spotify','duolingo','primevideo','disneyplus','espn','fifa'];
   const liveQueueDemoTiers=['small','medium','small','large','small','medium','large','small'];
   function scheduleNextLiveDemoDonation(delay=850){
     clearTimeout(liveQueueSimulationTimer);liveQueueSimulationTimer=0;if(!liveQueueSimulationRunning)return;
@@ -638,12 +667,120 @@
     liveQueueSimulationTimer=0;if(!liveQueueSimulationRunning)return;if(state.spinning){scheduleNextLiveDemoDonation(180);return}
     const index=liveQueueSimulationIndex++,activePlayers=state.balls.filter(ball=>!ball.dead&&!ball.isClone),repeatDonation=index>=7&&index%6===5&&activePlayers.length;
     const baseName=liveQueueDemoNames[index%liveQueueDemoNames.length],round=Math.floor(index/liveQueueDemoNames.length),nick=repeatDonation?activePlayers[index%activePlayers.length].nick:round?`${baseName}${round+1}`:baseName,tier=liveQueueDemoTiers[index%liveQueueDemoTiers.length];
-    ui.viewer.value=nick;runRoulette(tier);waitForLiveDemoDonation();
+    const avatarUrl=generatedLiveAvatar(nick),demoDonation={kind:'entry',trigger:'simulation',username:nick,avatarUrl};demoDonation.avatarReady=preloadImageUrl(avatarUrl).then(()=>avatarUrl);
+    ui.viewer.value=nick;runRoulette(tier,demoDonation);waitForLiveDemoDonation();
   }
   function setLiveQueueSimulation(running){
     liveQueueSimulationRunning=running;if(liveQueueSimulationTimer){clearTimeout(liveQueueSimulationTimer);liveQueueSimulationTimer=0}
     liveQueueSimulation.classList.toggle('is-running',running);liveQueueSimulation.setAttribute('aria-pressed',String(running));liveQueueSimulation.innerHTML=running?'<span aria-hidden="true">Ⅱ</span><b>PAUSAR LIVE</b>':'<span aria-hidden="true">▶</span><b>SIMULAR LIVE</b>';
     if(running)addLiveQueueDemoDonation();
+  }
+
+  function setLiveBridgeStatus(connected,message='') {
+    if(!liveBridgeMonitor)return;
+    liveBridgeMonitor.classList.toggle('is-connected',connected);
+    liveBridgeMonitor.classList.toggle('is-offline',!connected);
+    liveBridgeDot.classList.toggle('is-connected',connected);
+    liveBridgeStatus.textContent=connected?'PONTE CONECTADA':'PONTE OFFLINE';
+    if(message)liveBridgeEvent.textContent=message;
+  }
+
+  function queueLiveDonation(event) {
+    if(!event||!['small','medium','large'].includes(event.tier))return;
+    if(event.id&&seenLiveDonationIds.has(event.id))return;
+    if(event.id){seenLiveDonationIds.add(event.id);if(seenLiveDonationIds.size>200)seenLiveDonationIds.delete(seenLiveDonationIds.values().next().value)}
+    const username=sanitizeName(event.username||event.nickname)||'jogador';
+    const donation={...event,username,avatarUrl:event.avatarUrl||`https://unavatar.io/tiktok/${encodeURIComponent(username)}`};
+    if(donation.kind==='entry'&&!donation.isBot)donation.avatarReady=requestLiveDonationAvatar(username,event.avatarUrl||'').then(avatarUrl=>{donation.avatarUrl=avatarUrl;return avatarUrl});
+    if(donation.kind==='entry'&&donation.trigger==='comment'){
+      const alreadyActive=state.balls.some(ball=>!ball.dead&&!ball.isClone&&ball.nick.toLowerCase()===username.toLowerCase()),alreadyQueued=state.queue.some(player=>player.nick.toLowerCase()===username.toLowerCase()),alreadyPending=pendingLiveDonations.some(item=>item.kind==='entry'&&item.username.toLowerCase()===username.toLowerCase()),currentlyEntering=activeLiveDonation?.username?.toLowerCase()===username.toLowerCase();
+      if(alreadyActive||alreadyQueued||alreadyPending||currentlyEntering){liveBridgeEvent.textContent=`@${username} já está participando`;return}
+    }
+    pendingLiveDonations.push(donation);
+    const description=donation.kind==='heal'?'+10 HP por 50 curtidas':donation.kind==='arena-clear'?'ATIVOU A EXPLOSÃO':donation.trigger==='comment'?'comentou EU':`${tierConfig[event.tier].shortLabel}${event.giftName?` • ${event.giftName}`:''}`;
+    liveBridgeEvent.textContent=`@${username} • ${description}`;
+    drainLiveDonations();
+  }
+
+  function drainLiveDonations() {
+    if(state.viewMode!=='live'||state.spinning||liveEntryInProgress||!pendingLiveDonations.length)return;
+    const donation=pendingLiveDonations.shift();
+    if(donation.kind==='arena-clear'){triggerArenaExplosion(donation);return}
+    const activeBall=state.balls.find(ball=>!ball.dead&&!ball.isClone&&ball.nick.toLowerCase()===donation.username.toLowerCase());
+    if(donation.kind==='heal'){
+      if(!activeBall){liveBridgeEvent.textContent=`@${donation.username} ainda não está na arena`;setTimeout(drainLiveDonations,0);return}
+      const healKey=donation.username.toLowerCase(),now=Date.now(),readyAt=liveLikeHealReadyAt.get(healKey)||0;
+      if(now<readyAt){liveBridgeEvent.textContent=`@${donation.username} • cura em ${Math.ceil((readyAt-now)/1000)}s`;setTimeout(drainLiveDonations,0);return}
+      liveLikeHealReadyAt.set(healKey,now+LIVE_LIKE_HEAL_COOLDOWN_MS);
+      activeLiveDonation=donation;healBall(activeBall,'small',donation);return
+    }
+    if(donation.trigger==='comment'&&(activeBall||state.queue.some(player=>player.nick.toLowerCase()===donation.username.toLowerCase()))){liveBridgeEvent.textContent=`@${donation.username} já está participando`;setTimeout(drainLiveDonations,0);return}
+    ui.viewer.value=donation.username;
+    runRoulette(donation.tier,donation);
+  }
+
+  function triggerArenaExplosion(interaction) {
+    const username=interaction.username||'jogador',centerX=state.width/2,centerY=state.height/2;
+    state.spinning=true;setButtonsDisabled(true);liveArenaExplosionUser.textContent=`@${username} limpou a arena`;
+    liveArenaExplosion.hidden=false;liveArenaExplosion.classList.remove('is-active');void liveArenaExplosion.offsetWidth;liveArenaExplosion.classList.add('is-active');
+    createBurst(centerX,centerY,'#fff1a6',90);createBurst(centerX,centerY,'#ff8a32',85);createBurst(centerX,centerY,'#ff315f',70);
+    state.floaters.push({x:centerX,y:centerY-state.height*.12,color:'#ffe783',text:'💥 EXPLOSÃO DA ARENA',life:1.35,maxLife:1.35});
+    setTimeout(()=>{
+      const removed=[...state.balls];
+      for(const ball of removed){stopCharacterAudio(ball);if(!ball.isClone&&ball.profile){ball.profile.active=false;ball.profile.eliminatedAt=state.time}createBurst(ball.x,ball.y,ball.color,22)}
+      state.balls=[];state.companions=[];state.projectiles=[];state.contactCooldowns.clear();liveNoHumanSince=Date.now();liveNextBotAt=liveNoHumanSince+LIVE_BOT_IDLE_MS;syncUi();
+    },620);
+    setTimeout(()=>{
+      liveArenaExplosion.hidden=true;liveArenaExplosion.classList.remove('is-active');state.spinning=false;setButtonsDisabled(false);
+      if(state.queue.length){const next=state.queue.shift();startLiveArenaEntry(next)}else drainLiveDonations();
+    },1550);
+  }
+
+  function updateLiveBots() {
+    const now=Date.now();
+    if(state.viewMode!=='live') { liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return }
+    if(now<liveBotSpawnFlashUntil){botSpawnCountdown.hidden=false;botSpawnCountdown.className='bot-spawn-countdown is-spawn';botSpawnCountdownValue.textContent='SPAWN!!';return}
+    if(state.spinning||liveEntryInProgress||!liveRoulette.hidden){liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return}
+    const activeEntities=state.balls.filter(ball=>!ball.dead&&!ball.isClone),humanEntering=pendingLiveDonations.some(entry=>entry.kind==='entry'&&!entry.isBot)||(activeLiveDonation?.kind==='entry'&&!activeLiveDonation?.isBot)||(liveEntryCurrent&&!liveEntryCurrent.isBot);
+    if(activeEntities.length>=3){liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return}
+    if(humanEntering){liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return}
+    if(!liveNoHumanSince){liveNoHumanSince=now;liveNextBotAt=now+LIVE_BOT_IDLE_MS}
+    const seconds=Math.max(1,Math.ceil((liveNextBotAt-now)/1000));botSpawnCountdown.hidden=false;botSpawnCountdown.className=`bot-spawn-countdown ${seconds>=7?'is-blue':seconds>=4?'is-yellow':'is-red'}`;botSpawnCountdownValue.textContent=String(seconds);
+    const bots=activeEntities.filter(ball=>ball.isBot);
+    if(bots.length>=3||now<liveNextBotAt)return;
+    const activeNames=new Set(bots.map(ball=>ball.nick.toLowerCase())),botNumber=[1,2,3].find(number=>!activeNames.has(`bot_${number}`));
+    if(!botNumber)return;
+    const nick=`bot_${botNumber}`,botEntry={kind:'bot',trigger:'system',tier:'small',username:nick,nickname:nick,avatarUrl:'',isBot:true,source:'system'};liveNoHumanSince=0;liveNextBotAt=0;liveBotSpawnFlashUntil=now+900;botSpawnCountdown.className='bot-spawn-countdown is-spawn';botSpawnCountdownValue.textContent='SPAWN!!';state.spinning=true;setButtonsDisabled(true);
+    setTimeout(()=>{state.spinning=false;setButtonsDisabled(false);ui.viewer.value=nick;runRoulette('small',botEntry)},900);
+  }
+
+  function connectLiveBridge() {
+    const localBridgeHost=['127.0.0.1','localhost'].includes(location.hostname)||location.hostname.startsWith('port8832-');
+    if(!localBridgeHost||!window.EventSource){
+      setLiveBridgeStatus(false,'Abra pelo iniciar-live.bat');
+      return;
+    }
+    if(liveBridgeSource)liveBridgeSource.close();
+    clearTimeout(liveBridgeRetryTimer);
+    const source=new EventSource('/api/live/events');liveBridgeSource=source;
+    source.addEventListener('bridge',()=>setLiveBridgeStatus(true,'Aguardando presente do TikTok'));
+    source.addEventListener('live-interaction',(message)=>{
+      setLiveBridgeStatus(true);
+      try{queueLiveDonation(JSON.parse(message.data))}catch{liveBridgeEvent.textContent='Evento inválido recebido'}
+    });
+    source.onerror=()=>{
+      setLiveBridgeStatus(false,'Tentando reconectar...');
+      if(source.readyState===EventSource.CLOSED){source.close();liveBridgeRetryTimer=setTimeout(connectLiveBridge,1500)}
+    };
+  }
+
+  async function simulateBridgeDonation(actionId) {
+    const button=liveBridgeTestButtons.find(item=>item.dataset.liveTestAction===actionId);if(button)button.disabled=true;
+    try{
+      const existing=state.balls.find(ball=>!ball.dead&&!ball.isClone),username=actionId==='likes_heal_50'&&existing?existing.nick:`teste_${Math.floor(100+Math.random()*900)}`;
+      const response=await fetch('/api/live/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actionId,username})});
+      if(!response.ok)throw new Error('bridge-test');
+    }catch{setLiveBridgeStatus(false,'Falha ao simular • reinicie a ponte')}finally{if(button)button.disabled=false}
   }
 
   function promoteNextPlayer() {
@@ -768,7 +905,7 @@
   }
 
   function finishGenosSelfDestruct(genos) {
-    const radius=Math.max(105,state.width*.17),x=genos.x,y=genos.y;for(const target of state.balls){if(target===genos||target.dead||sameCloneFamily(target,genos)||thorfinnPhased(target))continue;if(Math.hypot(target.x-x,target.y-y)<=radius+target.radius)applyProjectileDamage(target,genos,25)}state.projectiles.push({type:'genosExplosion',owner:null,x,y,radius,life:.85,maxLife:.85});createBurst(x,y,'#fff19b',100);createBurst(x,y,'#ff532d',80);genos.genosSelfDestructing=false;recordVideoElimination(genos);genos.dead=true;stopCharacterAudio(genos);genos.profile.active=false;const killer=genos.genosDeathKiller;if(killer){killer.profile.kos+=1;if(scoringEnabled())killer.profile.score+=100;if(killer.character==='char8')spawnSungShadow(killer,genos)}renderRanking();
+    const radius=Math.max(105,state.width*.17),x=genos.x,y=genos.y;for(const target of state.balls){if(target===genos||target.dead||sameCloneFamily(target,genos)||thorfinnPhased(target))continue;if(Math.hypot(target.x-x,target.y-y)<=radius+target.radius)applyProjectileDamage(target,genos,25)}state.projectiles.push({type:'genosExplosion',owner:null,x,y,radius,life:.85,maxLife:.85});createBurst(x,y,'#fff19b',100);createBurst(x,y,'#ff532d',80);genos.genosSelfDestructing=false;recordVideoElimination(genos);genos.dead=true;stopCharacterAudio(genos);genos.profile.active=false;const killer=genos.genosDeathKiller;if(killer){awardKo(killer);if(killer.character==='char8')spawnSungShadow(killer,genos)}renderRanking();
   }
 
   function updateGenosPowers() {
@@ -851,6 +988,8 @@
 
   function gojoModeActive(ball,mode) { return ball.character==='char30'&&ball.gojoMode===mode&&state.time<ball.gojoActiveUntil; }
   function scoringEnabled() { return state.viewMode!=='video'; }
+  function awardDamage(owner,amount) { if(!owner||owner.isBot||amount<=0)return;owner.profile.damage+=amount;if(scoringEnabled())owner.profile.score+=amount; }
+  function awardKo(owner) { if(!owner||owner.isBot)return;owner.profile.kos+=1;if(scoringEnabled())owner.profile.score+=100; }
   function videoCollisionDamageMultiplier() {
     if(state.viewMode!=='video')return 1;const alive=playerBallCount();return alive>=6?.6:alive===5?.7:alive===4?.8:alive===3?.9:1;
   }
@@ -865,7 +1004,7 @@
   function applyCollisionDamage(a,b,damage) {
     const damageToA=Math.min(a.hp,adjustedDamage(a,outgoingDamage(b,damage))*attackCollisionDamageMultiplier(a)),damageToB=Math.min(b.hp,adjustedDamage(b,outgoingDamage(a,damage))*attackCollisionDamageMultiplier(b));
     a.hp-=damageToA;b.hp-=damageToB;
-    b.profile.damage+=damageToA;a.profile.damage+=damageToB;if(scoringEnabled()){b.profile.score+=damageToA;a.profile.score+=damageToB}
+    awardDamage(b,damageToA);awardDamage(a,damageToB);
     if(damageToA>0||thorfinnPhased(a)||gojoModeActive(a,'red'))addDamageFloater(a,damageToA);if(damageToB>0||thorfinnPhased(b)||gojoModeActive(b,'red'))addDamageFloater(b,damageToB);
     createBurst(a.x,a.y,b.color,7);createBurst(b.x,b.y,a.color,7);advanceKilluaResistance(a,damageToA);advanceKilluaResistance(b,damageToB);
     if(a.hp<=0)eliminateBall(a,b);
@@ -877,7 +1016,7 @@
     if(trySubaruReturn(ball,killer))return;
     if(startGenosSelfDestruct(ball,killer))return;
     if(ball.dead)return;ball.dead=true;stopCharacterAudio(ball);if(!ball.isClone){recordVideoElimination(ball);ball.profile.active=false;for(const clone of state.balls){if(clone.isClone&&sameCloneFamily(clone,ball)){clone.dead=true;stopCharacterAudio(clone)}}}
-    if(killer){killer.profile.kos+=1;if(scoringEnabled())killer.profile.score+=100;if(killer.character==='char8')spawnSungShadow(killer,ball)}
+    if(killer){awardKo(killer);if(killer.character==='char8')spawnSungShadow(killer,ball)}
     createBurst(ball.x,ball.y,ball.color,38);
   }
 
@@ -955,7 +1094,7 @@
   }
 
   function updateThorfinnPowers() {
-    let rankingChanged=false;for(const thorfinn of state.balls){if(thorfinn.dead||thorfinn.character!=='char4')continue;if(state.time>=thorfinn.thorfinnAudioStopsAt){stopCharacterAudio(thorfinn);thorfinn.thorfinnAudioStopsAt=Infinity}if(state.time>=thorfinn.thorfinnNextPhaseAt){thorfinn.thorfinnPhaseUntil=state.time+5;thorfinn.thorfinnAudioStopsAt=thorfinn.thorfinnPhaseUntil;thorfinn.thorfinnNextPhaseAt=state.time+15;playCharacterCue('char4','power',{volume:.3,owner:thorfinn});createBurst(thorfinn.x,thorfinn.y,'#c9f59c',26);state.floaters.push({x:thorfinn.x,y:thorfinn.y-thorfinn.radius-10,color:'#dfffb7',text:'EU NÃO TENHO INIMIGOS',life:1.5,maxLife:1.5})}if(state.time>=thorfinn.thorfinnNextPointAt){thorfinn.thorfinnNextPointAt+=1;if(scoringEnabled()){thorfinn.profile.score+=1;thorfinn.thorfinnPassiveTicks+=1;rankingChanged=true;if(thorfinn.thorfinnPassiveTicks%3===0)state.floaters.push({x:thorfinn.x,y:thorfinn.y-thorfinn.radius-7,color:'#d7f5ad',text:'+1 PAZ',life:.7,maxLife:.7})}}}if(rankingChanged)renderRanking();
+    let rankingChanged=false;for(const thorfinn of state.balls){if(thorfinn.dead||thorfinn.character!=='char4')continue;if(state.time>=thorfinn.thorfinnAudioStopsAt){stopCharacterAudio(thorfinn);thorfinn.thorfinnAudioStopsAt=Infinity}if(state.time>=thorfinn.thorfinnNextPhaseAt){thorfinn.thorfinnPhaseUntil=state.time+5;thorfinn.thorfinnAudioStopsAt=thorfinn.thorfinnPhaseUntil;thorfinn.thorfinnNextPhaseAt=state.time+15;playCharacterCue('char4','power',{volume:.3,owner:thorfinn});createBurst(thorfinn.x,thorfinn.y,'#c9f59c',26);state.floaters.push({x:thorfinn.x,y:thorfinn.y-thorfinn.radius-10,color:'#dfffb7',text:'EU NÃO TENHO INIMIGOS',life:1.5,maxLife:1.5})}if(state.time>=thorfinn.thorfinnNextPointAt){thorfinn.thorfinnNextPointAt+=1;if(scoringEnabled()&&!thorfinn.isBot){thorfinn.profile.score+=1;thorfinn.thorfinnPassiveTicks+=1;rankingChanged=true;if(thorfinn.thorfinnPassiveTicks%3===0)state.floaters.push({x:thorfinn.x,y:thorfinn.y-thorfinn.radius-7,color:'#d7f5ad',text:'+1 PAZ',life:.7,maxLife:.7})}}}if(rankingChanged)renderRanking();
   }
 
   function updateThorfinnVideoVictory() {
@@ -1272,7 +1411,7 @@
   }
 
   function applyProjectileDamage(target,owner,damage) {
-    if(target.dead)return;const dealt=Math.min(target.hp,adjustedDamage(target,outgoingDamage(owner,videoAbilityDamage(owner,damage))));target.hp-=dealt;owner.profile.damage+=dealt;if(scoringEnabled())owner.profile.score+=dealt;addDamageFloater(target,dealt);createBurst(target.x,target.y,'#ff263f',24);
+    if(target.dead)return;const dealt=Math.min(target.hp,adjustedDamage(target,outgoingDamage(owner,videoAbilityDamage(owner,damage))));target.hp-=dealt;awardDamage(owner,dealt);addDamageFloater(target,dealt);createBurst(target.x,target.y,'#ff263f',24);
     if(target.hp<=0)eliminateBall(target,owner);renderRanking();
   }
 
@@ -1855,7 +1994,7 @@
   drawGomuFist=projectile=>projectile.type==='stone'?drawStone(projectile):drawGomuFistBase(projectile);
   function draw() { drawBackground();drawSubaruRewindOverlay();drawSungAriseOverlay();for(const projectile of state.projectiles){if(projectile.type==='genosExplosion')drawGenosExplosion(projectile);else if(projectile.type==='genosIncinerator')drawGenosIncinerator(projectile);else if(projectile.type.startsWith('minato'))drawMinatoPower(projectile);else if(projectile.type.startsWith('cain'))drawCainPower(projectile);else if(projectile.type==='shadowPossession')drawShadowPossession(projectile);else if(projectile.type==='namiThunderBubble')drawNamiThunderBubble(projectile);else if(projectile.type==='subaruShadow')drawSubaruShadow(projectile);else if(projectile.type==='singedPoison')drawSingedPoison(projectile);else if(projectile.type==='yorKnife')drawYorKnife(projectile);else if(projectile.type==='meguminExplosion')drawMeguminExplosion(projectile);else if(projectile.type==='getsuga')drawGetsuga(projectile);else if(projectile.type==='rasenShuriken')drawRasenShuriken(projectile);else if(projectile.type==='thunderStorm')drawThunderStorm(projectile);else if(projectile.type==='predator')drawPredatorVortex(projectile);else if(projectile.type==='kamehameha')drawKamehameha(projectile);else if(projectile.type==='hollowPurple')drawHollowPurple(projectile);else if(projectile.type==='cruelSun')drawCruelSun(projectile);else if(projectile.type==='bomb')drawBomb(projectile);else if(projectile.type==='iceShard')drawIceShard(projectile);else drawGomuFist(projectile)}drawAlchemyLinks();for(const ball of state.balls)drawBall(ball);for(const companion of state.companions){if(companion.type==='soccerBall')drawSoccerBall(companion);else if(companion.type==='sungShadow')drawSungShadow(companion);else drawAlCompanion(companion)}for(const p of state.particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size)}for(const floater of state.floaters){ctx.globalAlpha=Math.max(0,floater.life/floater.maxLife);ctx.fillStyle=floater.color;ctx.textAlign='center';ctx.font='800 13px Chakra Petch';ctx.fillText(floater.text,floater.x,floater.y)}ctx.globalAlpha=1; }
   function renderQueue(){const video=state.viewMode==='video',players=video?[...state.profiles.values()].map(profile=>({nick:profile.nick,character:profile.lastCharacter,tier:'video',color:profile.color,avatarUrl:profile.avatarUrl||'',eliminated:!profile.active})):state.queue;ui.queueCount.textContent=players.length;ui.queueEmpty.hidden=players.length>0;ui.queueEmpty.textContent=video?'Inicie o sorteio dos seis lutadores abaixo':'A fila está vazia';ui.queueList.innerHTML=players.map((player,index)=>`<li class="queue-item${player.eliminated?' is-eliminated':''}" style="--item-color:${player.color}"><span class="queue-avatar${player.avatarUrl?' has-photo':''}"${player.avatarUrl?` style="background-image:url('${player.avatarUrl}')"`:''}>${player.avatarUrl?'':player.nick.charAt(0).toUpperCase()}</span><span class="queue-info"><strong>${video?'':'@'}${player.nick}</strong><small>${characterDisplayName(player.character)} • ${tierConfig[player.tier].shortLabel}</small></span><span class="queue-position">${player.eliminated?'K.O.':index+1}</span></li>`).join('')}
-  function renderRanking(){if(state.viewMode==='video'){liveRankingList.innerHTML='';ui.rankingList.innerHTML='';ui.rankingEmpty.hidden=false;return}const ranked=[...state.profiles.values()].filter(profile=>profile.score>0).sort((a,b)=>b.score-a.score||b.kos-a.kos).slice(0,10);liveRankingList.innerHTML=Array.from({length:3},(_,index)=>{const profile=ranked[index];return profile?`<li style="--medal:${index===0?'#ffd15c':index===1?'#cbd3df':'#c47a47'}"><span>${profile.nick.charAt(0).toUpperCase()}<i>${index+1}</i></span><b>@${profile.nick}</b><small>${Math.round(profile.score)} pts</small></li>`:`<li class="is-empty"><span>—<i>${index+1}</i></span><b>aguardando</b><small>0 pts</small></li>`}).join('');ui.rankingEmpty.hidden=ranked.length>0;ui.rankingEmpty.textContent='O ranking começa com o primeiro dano';const podium=ranked.slice(0,3).map((profile,index)=>`<li class="rank-card rank-card--${index+1}" style="--player-color:${profile.color}"><span class="rank-avatar-wrap"><span class="rank-avatar">${profile.nick.charAt(0).toUpperCase()}</span><span class="rank-medal">${index+1}</span></span><span class="rank-info"><strong>@${profile.nick}</strong><span class="rank-score">${Math.round(profile.score)} PTS</span><small>${Math.round(profile.damage)} dano • ${profile.kos} K.O.</small></span></li>`).join('');const remaining=ranked.slice(3).map((profile,index)=>`<li class="rank-row"><span class="rank-row-position">${String(index+4).padStart(2,'0')}</span><strong>@${profile.nick}</strong><b>${Math.round(profile.score)} PTS</b></li>`).join('');ui.rankingList.innerHTML=podium+(remaining?`<li class="rank-divider">4º — 10º LUGAR</li>`+remaining:'')}
+  function renderRanking(){if(state.viewMode==='video'){liveRankingList.innerHTML='';ui.rankingList.innerHTML='';ui.rankingEmpty.hidden=false;return}const ranked=[...state.profiles.values()].filter(profile=>!profile.isBot&&profile.score>0).sort((a,b)=>b.score-a.score||b.kos-a.kos).slice(0,10);liveRankingList.innerHTML=Array.from({length:3},(_,index)=>{const profile=ranked[index];return profile?`<li style="--medal:${index===0?'#ffd15c':index===1?'#cbd3df':'#c47a47'}"><span>${profile.nick.charAt(0).toUpperCase()}<i>${index+1}</i></span><b>@${profile.nick}</b><small>${Math.round(profile.score)} pts</small></li>`:`<li class="is-empty"><span>—<i>${index+1}</i></span><b>aguardando</b><small>0 pts</small></li>`}).join('');ui.rankingEmpty.hidden=ranked.length>0;ui.rankingEmpty.textContent='O ranking começa com o primeiro dano';const podium=ranked.slice(0,3).map((profile,index)=>`<li class="rank-card rank-card--${index+1}" style="--player-color:${profile.color}"><span class="rank-avatar-wrap"><span class="rank-avatar">${profile.nick.charAt(0).toUpperCase()}</span><span class="rank-medal">${index+1}</span></span><span class="rank-info"><strong>@${profile.nick}</strong><span class="rank-score">${Math.round(profile.score)} PTS</span><small>${Math.round(profile.damage)} dano • ${profile.kos} K.O.</small></span></li>`).join('');const remaining=ranked.slice(3).map((profile,index)=>`<li class="rank-row"><span class="rank-row-position">${String(index+4).padStart(2,'0')}</span><strong>@${profile.nick}</strong><b>${Math.round(profile.score)} PTS</b></li>`).join('');ui.rankingList.innerHTML=podium+(remaining?`<li class="rank-divider">4º — 10º LUGAR</li>`+remaining:'')}
   function syncUi(){const players=playerBallCount();ui.active.textContent=players;ui.empty.hidden=players>0;renderQueue();renderRanking()}
   function frame(now){const dt=Math.min(.033,(now-state.lastTime)/1000);state.lastTime=now;if(state.running)update(dt*state.speed);draw();requestAnimationFrame(frame)}
   function togglePause(){if(state.videoIntroActive||liveEntryInProgress)return;state.running=!state.running;const label=state.running?'Ⅱ PAUSAR':'▶ CONTINUAR';ui.pause.textContent=label;videoPauseButton.textContent=label}
@@ -1897,6 +2036,7 @@
   charactersModal.addEventListener('click',event=>{if(event.target===charactersModal)closeCharactersModal()});
   charactersModal.addEventListener('close',()=>{document.body.classList.remove('characters-modal-open');releaseAudioDuck(characterPreviewAudio);characterPreviewAudio.pause()});
   liveQueueSimulation.addEventListener('click',()=>setLiveQueueSimulation(!liveQueueSimulationRunning));
+  for(const button of liveBridgeTestButtons)button.addEventListener('click',()=>simulateBridgeDonation(button.dataset.liveTestAction));
   for(const button of modeButtons)button.addEventListener('click',()=>setViewMode(button.dataset.mode));
   ui.escanorTest.addEventListener('click',()=>{if(state.spinning)return;const nick=sanitizeName(ui.viewer.value)||'teste_escanor';if(state.balls.some(ball=>ball.nick.toLowerCase()===nick.toLowerCase())){ui.error.textContent='Esse nick já está vivo na arena.';return}if(playerBallCount()>=MAX_BALLS)enqueuePlayer(nick,'char11','medium');else spawnBall(nick,'char11','medium');ui.viewer.value=''});
   ui.bombermanTest.addEventListener('click',()=>{if(state.spinning)return;const nick=sanitizeName(ui.viewer.value)||'teste_bomberman';if(state.balls.some(ball=>ball.nick.toLowerCase()===nick.toLowerCase())){ui.error.textContent='Esse nick já está vivo na arena.';return}if(playerBallCount()>=MAX_BALLS)enqueuePlayer(nick,'char12','medium');else spawnBall(nick,'char12','medium');ui.viewer.value=''});
@@ -1937,5 +2077,5 @@
   ui.clear.addEventListener('click',clearArenaSession);
   ui.speed.addEventListener('change',event=>{state.speed=Number(event.target.value)});
   window.addEventListener('resize',()=>{fitCanvas();for(const ball of state.balls){ball.baseMoveSpeed=state.width*.18;ball.moveSpeed=ball.character==='char24'?(ball.erenForm===2?ball.baseMoveSpeed*2:ball.erenForm===3?ball.baseMoveSpeed*.58:ball.baseMoveSpeed):ball.baseMoveSpeed;keepConstantSpeed(ball);ball.x=Math.min(state.width-ball.radius,Math.max(ball.radius,ball.x));ball.y=Math.min(state.height-ball.radius,Math.max(ball.radius,ball.y))}for(const companion of state.companions){companion.baseMoveSpeed=state.width*(companion.type==='soccerBall'?.18:companion.type==='sungShadow'?.24:.14);companion.moveSpeed=companion.baseMoveSpeed;const targetSpeed=companion.baseMoveSpeed*(companion.type==='soccerBall'&&state.time<companion.boostUntil?3:1),speed=Math.hypot(companion.vx,companion.vy)||1;companion.vx=companion.vx/speed*targetSpeed;companion.vy=companion.vy/speed*targetSpeed;companion.x=Math.min(state.width-companion.radius,Math.max(companion.radius,companion.x));companion.y=Math.min(state.height-companion.radius,Math.max(companion.radius,companion.y))}});
-  const requestedMode=new URLSearchParams(window.location.search).get('mode');setViewMode(requestedMode==='video'?'video':'live');fitCanvas();syncUi();requestAnimationFrame(frame);
+  const requestedMode=new URLSearchParams(window.location.search).get('mode');setViewMode(requestedMode==='video'?'video':'live');fitCanvas();syncUi();connectLiveBridge();setInterval(drainLiveDonations,180);setInterval(updateLiveBots,400);requestAnimationFrame(frame);
 })();
