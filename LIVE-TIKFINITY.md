@@ -34,13 +34,14 @@ Em **Ações**, crie uma Action e adicione o efeito **Action de terceiros**. Sel
 
 Na aba **Eventos**, faça os vínculos:
 
-- **Commenting a command** com o comando `!eu` → entrada baixa;
+- comentário comum exatamente `eu` → entrada baixa pela Event API local do TikFinity Desktop;
+- opcionalmente, **Commenting a command** com `!eu` pode permanecer como entrada de reserva;
 - bloco de 50 curtidas do usuário → cura de 10 HP;
 - presente Rosa → entrada média;
 - presente Mini Dino → entrada grande.
 - presente com valor de 200 moedas → explosão que elimina todos que estão na arena.
 
-O comando `!eu` é ignorado se a pessoa já estiver viva ou aguardando na fila. A cura também é ignorada quando a pessoa ainda não possui personagem. Uma nova Rosa ou Mini Dino cura o personagem do usuário caso ele já esteja vivo, preservando a regra anterior de doações repetidas.
+O comentário `eu` (ou o comando de reserva `!eu`) é ignorado se a pessoa já estiver viva ou aguardando na fila. Para reconhecer `eu` sem prefixo, mantenha o aplicativo TikFinity Desktop aberto no mesmo computador; a arena conecta automaticamente à Event API em `ws://127.0.0.1:21213`. A cura também é ignorada quando a pessoa ainda não possui personagem. Uma nova Rosa ou Mini Dino cura o personagem do usuário caso ele já esteja vivo, preservando a regra anterior de doações repetidas.
 
 A cura por curtidas tem cooldown interno de 20 segundos por usuário. Mesmo que o TikFinity envie vários lotes seguidos, cada pessoa pode recuperar no máximo 10 HP por acionamento e 30 HP por minuto.
 
