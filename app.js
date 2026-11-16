@@ -60,7 +60,7 @@
   let activeLiveDonation=null,liveBridgeSource=null,liveBridgeRetryTimer=0;
   const pendingLiveDonations=[],seenLiveDonationIds=new Set();
   const LIVE_LIKE_HEAL_COOLDOWN_MS=20_000,liveLikeHealReadyAt=new Map();
-  const LIVE_BOT_IDLE_MS=10_000;
+  const LIVE_BOT_IDLE_MS=10_000,LIVE_BOT_TARGET_ENTITIES=5;
   let liveNoHumanSince=0,liveNextBotAt=0,liveBotSpawnFlashUntil=0;
   let liveEntryPresentationTimer=0,liveEntryPresentationRun=0,liveEntryInProgress=false,liveEntryCurrent=null,pausedLiveCharacterAudio=[];
 
@@ -742,13 +742,13 @@
     if(now<liveBotSpawnFlashUntil){botSpawnCountdown.hidden=false;botSpawnCountdown.className='bot-spawn-countdown is-spawn';botSpawnCountdownValue.textContent='SPAWN!!';return}
     if(state.spinning||liveEntryInProgress||!liveRoulette.hidden){liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return}
     const activeEntities=state.balls.filter(ball=>!ball.dead&&!ball.isClone),humanEntering=pendingLiveDonations.some(entry=>entry.kind==='entry'&&!entry.isBot)||(activeLiveDonation?.kind==='entry'&&!activeLiveDonation?.isBot)||(liveEntryCurrent&&!liveEntryCurrent.isBot);
-    if(activeEntities.length>=3){liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return}
+    if(activeEntities.length>=LIVE_BOT_TARGET_ENTITIES){liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return}
     if(humanEntering){liveNoHumanSince=0;liveNextBotAt=0;botSpawnCountdown.hidden=true;return}
     if(!liveNoHumanSince){liveNoHumanSince=now;liveNextBotAt=now+LIVE_BOT_IDLE_MS}
     const seconds=Math.max(1,Math.ceil((liveNextBotAt-now)/1000));botSpawnCountdown.hidden=false;botSpawnCountdown.className=`bot-spawn-countdown ${seconds>=7?'is-blue':seconds>=4?'is-yellow':'is-red'}`;botSpawnCountdownValue.textContent=String(seconds);
     const bots=activeEntities.filter(ball=>ball.isBot);
-    if(bots.length>=3||now<liveNextBotAt)return;
-    const activeNames=new Set(bots.map(ball=>ball.nick.toLowerCase())),botNumber=[1,2,3].find(number=>!activeNames.has(`bot_${number}`));
+    if(bots.length>=LIVE_BOT_TARGET_ENTITIES||now<liveNextBotAt)return;
+    const activeNames=new Set(bots.map(ball=>ball.nick.toLowerCase())),botNumber=Array.from({length:LIVE_BOT_TARGET_ENTITIES},(_,index)=>index+1).find(number=>!activeNames.has(`bot_${number}`));
     if(!botNumber)return;
     const nick=`bot_${botNumber}`,botEntry={kind:'bot',trigger:'system',tier:'small',username:nick,nickname:nick,avatarUrl:'',isBot:true,source:'system'};liveNoHumanSince=0;liveNextBotAt=0;liveBotSpawnFlashUntil=now+900;botSpawnCountdown.className='bot-spawn-countdown is-spawn';botSpawnCountdownValue.textContent='SPAWN!!';state.spinning=true;setButtonsDisabled(true);
     setTimeout(()=>{state.spinning=false;setButtonsDisabled(false);ui.viewer.value=nick;runRoulette('small',botEntry)},900);
@@ -756,13 +756,15 @@
 
   function connectLiveBridge() {
     const localBridgeHost=['127.0.0.1','localhost'].includes(location.hostname)||location.hostname.startsWith('port8832-');
-    if(!localBridgeHost||!window.EventSource){
+    const remoteBridgeRequested=new URLSearchParams(location.search).get('bridge')==='local';
+    if((!localBridgeHost&&!remoteBridgeRequested)||!window.EventSource){
       setLiveBridgeStatus(false,'Abra pelo iniciar-live.bat');
       return;
     }
     if(liveBridgeSource)liveBridgeSource.close();
     clearTimeout(liveBridgeRetryTimer);
-    const source=new EventSource('/api/live/events');liveBridgeSource=source;
+    const bridgeUrl=localBridgeHost?'/api/live/events':'http://127.0.0.1:8832/api/live/events';
+    const source=new EventSource(bridgeUrl);liveBridgeSource=source;
     source.addEventListener('bridge',()=>setLiveBridgeStatus(true,'Aguardando presente do TikTok'));
     source.addEventListener('live-interaction',(message)=>{
       setLiveBridgeStatus(true);
