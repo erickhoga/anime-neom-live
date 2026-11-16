@@ -697,7 +697,7 @@
       if(alreadyActive||alreadyQueued||alreadyPending||currentlyEntering){liveBridgeEvent.textContent=`@${username} já está participando`;return}
     }
     pendingLiveDonations.push(donation);
-    const description=donation.kind==='heal'?'+10 HP por 50 curtidas':donation.kind==='arena-clear'?'ATIVOU A EXPLOSÃO':donation.trigger==='comment'?'comentou EU':`${tierConfig[event.tier].shortLabel}${event.giftName?` • ${event.giftName}`:''}`;
+    const description=donation.kind==='heal'?'+10 HP por 50 curtidas':donation.kind==='arena-clear'?'ATIVOU A EXPLOSÃO':donation.trigger==='comment'?'comentou !EU':`${tierConfig[event.tier].shortLabel}${event.giftName?` • ${event.giftName}`:''}`;
     liveBridgeEvent.textContent=`@${username} • ${description}`;
     drainLiveDonations();
   }

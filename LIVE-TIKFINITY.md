@@ -26,7 +26,7 @@ O painel que fica fora do enquadramento da LIVE mostra a conexão e contém cinc
 
 Em **Ações**, crie uma Action e adicione o efeito **Action de terceiros**. Selecione a categoria **Anime Neom Clash** e uma destas ações:
 
-- **Comentou EU • entrar na categoria baixa**;
+- **Comentou !EU • entrar na categoria baixa**;
 - **50 curtidas • curar 10 HP**;
 - **Rosa • entrar na categoria média**;
 - **Mini Dino • entrar na categoria grande**.
@@ -34,13 +34,13 @@ Em **Ações**, crie uma Action e adicione o efeito **Action de terceiros**. Sel
 
 Na aba **Eventos**, faça os vínculos:
 
-- comentário exatamente `eu` → entrada baixa;
+- **Commenting a command** com o comando `!eu` → entrada baixa;
 - bloco de 50 curtidas do usuário → cura de 10 HP;
 - presente Rosa → entrada média;
 - presente Mini Dino → entrada grande.
 - presente com valor de 200 moedas → explosão que elimina todos que estão na arena.
 
-O comentário `eu` é ignorado se a pessoa já estiver viva ou aguardando na fila. A cura também é ignorada quando a pessoa ainda não possui personagem. Uma nova Rosa ou Mini Dino cura o personagem do usuário caso ele já esteja vivo, preservando a regra anterior de doações repetidas.
+O comando `!eu` é ignorado se a pessoa já estiver viva ou aguardando na fila. A cura também é ignorada quando a pessoa ainda não possui personagem. Uma nova Rosa ou Mini Dino cura o personagem do usuário caso ele já esteja vivo, preservando a regra anterior de doações repetidas.
 
 A cura por curtidas tem cooldown interno de 20 segundos por usuário. Mesmo que o TikFinity envie vários lotes seguidos, cada pessoa pode recuperar no máximo 10 HP por acionamento e 30 HP por minuto.
 

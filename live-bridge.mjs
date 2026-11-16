@@ -22,7 +22,7 @@ const CATEGORY = {
 };
 
 const ACTIONS = [
-  { actionId: 'comment_join_small', actionName: 'Comentou EU • entrar na categoria baixa' },
+  { actionId: 'comment_join_small', actionName: 'Comentou !EU • entrar na categoria baixa' },
   { actionId: 'likes_heal_50', actionName: '50 curtidas • curar 10 HP' },
   { actionId: 'rose_join_medium', actionName: 'Rosa • entrar na categoria média' },
   { actionId: 'mini_dino_join_large', actionName: 'Mini Dino • entrar na categoria grande' },
