@@ -63,6 +63,8 @@ A área **Aguardando próximo jogador**, acima da arena, mostra a contagem no ca
 
 ## TikTok LIVE Studio
 
-Use `http://127.0.0.1:8832/?mode=live` como fonte de link. A arena recebe os eventos automaticamente; não é necessário adicionar o overlay **My Screens** do TikFinity.
+Use `http://127.0.0.1:8832/?mode=live#tiktok.studio` como fonte de link da arena. O sufixo `#tiktok.studio` faz o LIVE Studio aceitar o endereço HTTP local.
+
+Adicione também a URL da **Screen 1** do TikFinity como uma segunda fonte Link, mantenha-a habilitada e posicione-a atrás da arena. Ela precisa aparecer como `Online` no TikFinity para executar Actions & Events.
 
 Se preferir controlar e transmitir exatamente a mesma janela, abra o endereço no navegador em tela cheia e use **Captura de janela** no LIVE Studio.
