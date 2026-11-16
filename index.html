@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=20261115-09" />
+    <link rel="stylesheet" href="./styles.css?v=20261116-live-01" />
   </head>
   <body class="mode-dev">
     <nav class="mode-switch-shell" aria-label="Modo de visualização">
@@ -32,6 +32,10 @@
           <button class="live-queue-simulation" id="liveQueueSimulation" type="button" aria-pressed="false">
             <span aria-hidden="true">▶</span><b>SIMULAR LIVE</b>
           </button>
+          <section class="live-ranking-summary" aria-label="Top 3 da live">
+            <strong>TOP 3</strong>
+            <ol id="liveRankingList"></ol>
+          </section>
           <div class="music-picker">
             <label for="musicSelect">TRILHA</label>
             <select id="musicSelect" aria-label="Escolher música de fundo">
@@ -267,6 +271,6 @@
         <div class="characters-gallery" id="charactersGallery"></div>
       </div>
     </dialog>
-    <script src="./app.js?v=20261115-09"></script>
+    <script src="./app.js?v=20261116-live-01"></script>
   </body>
 </html>
