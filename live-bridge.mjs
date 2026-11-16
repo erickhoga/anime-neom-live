@@ -22,7 +22,7 @@ const CATEGORY = {
 };
 
 const ACTIONS = [
-  { actionId: 'comment_join_small', actionName: 'Comentou !EU • entrar na categoria baixa' },
+  { actionId: 'comment_join_small', actionName: 'Comentou EU • entrar na categoria baixa' },
   { actionId: 'likes_heal_50', actionName: '50 curtidas • curar 10 HP' },
   { actionId: 'rose_join_medium', actionName: 'Rosa • entrar na categoria média' },
   { actionId: 'mini_dino_join_large', actionName: 'Mini Dino • entrar na categoria grande' },
@@ -89,6 +89,10 @@ function cleanName(value, fallback = 'jogador') {
   return clean || fallback;
 }
 
+function cleanComment(value) {
+  return String(value || '').trim().toLocaleLowerCase('pt-BR');
+}
+
 function createInteraction(actionId, context = {}, source = 'tikfinity') {
   const config = configFromAction(actionId);
   const username = cleanName(context.username || context.uniqueId || context.nickname);
@@ -102,6 +106,7 @@ function createInteraction(actionId, context = {}, source = 'tikfinity') {
     healAmount: config.healAmount || 0,
     username,
     nickname: cleanName(context.nickname, username),
+    comment: String(context.comment || context.commentText || context.message || context.content || context.commandParams || ''),
     avatarUrl: String(context.profilePictureUrl || context.profilePicturUrl || ''),
     giftName: String(context.giftName || context.giftname || ''),
     giftId: context.giftId ?? null,
@@ -199,7 +204,9 @@ const server = http.createServer(async (req, res) => {
     const body = await readJson(req);
     if (!configFromAction(body.actionId)) return sendJson(res, 200, { message: `Ação desconhecida: ${body.actionId || '(vazia)'}` });
     const source = body.context?.source === 'test' || body.context?.eventType === 'test' ? 'test' : 'tikfinity';
-    broadcast(createInteraction(body.actionId, body.context, source));
+    const interaction = createInteraction(body.actionId, body.context, source);
+    if (body.actionId === 'comment_join_small' && source !== 'test' && !['eu', '!eu'].includes(cleanComment(interaction.comment))) return sendJson(res, 200, { data: [], ignored: true });
+    broadcast(interaction);
     return sendJson(res, 200, { data: [] });
   }
   if (req.method === 'GET' && url.pathname === '/api/live/events') {

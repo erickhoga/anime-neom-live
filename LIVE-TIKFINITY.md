@@ -26,7 +26,7 @@ O painel que fica fora do enquadramento da LIVE mostra a conexão e contém cinc
 
 Em **Ações**, crie uma Action e adicione o efeito **Action de terceiros**. Selecione a categoria **Anime Neom Clash** e uma destas ações:
 
-- **Comentou !EU • entrar na categoria baixa**;
+- **Comentou EU • entrar na categoria baixa**;
 - **50 curtidas • curar 10 HP**;
 - **Rosa • entrar na categoria média**;
 - **Mini Dino • entrar na categoria grande**.
@@ -34,14 +34,13 @@ Em **Ações**, crie uma Action e adicione o efeito **Action de terceiros**. Sel
 
 Na aba **Eventos**, faça os vínculos:
 
-- comentário comum exatamente `eu` → entrada baixa pela Event API local do TikFinity Desktop;
-- opcionalmente, **Commenting a command** com `!eu` pode permanecer como entrada de reserva;
+- evento de qualquer comentário → ação de entrada baixa; a ponte descarta tudo que não seja exatamente `eu` ou `!eu`;
 - bloco de 50 curtidas do usuário → cura de 10 HP;
 - presente Rosa → entrada média;
 - presente Mini Dino → entrada grande.
 - presente com valor de 200 moedas → explosão que elimina todos que estão na arena.
 
-O comentário `eu` (ou o comando de reserva `!eu`) é ignorado se a pessoa já estiver viva ou aguardando na fila. Para reconhecer `eu` sem prefixo, mantenha o aplicativo TikFinity Desktop aberto no mesmo computador; a arena conecta automaticamente à Event API em `ws://127.0.0.1:21213`. A cura também é ignorada quando a pessoa ainda não possui personagem. Uma nova Rosa ou Mini Dino cura o personagem do usuário caso ele já esteja vivo, preservando a regra anterior de doações repetidas.
+O TikFinity chama a Action para todos os comentários, mas a ponte local só encaminha os textos exatos `eu` e `!eu`. Esses comentários são ignorados se a pessoa já estiver viva ou aguardando na fila. A cura também é ignorada quando a pessoa ainda não possui personagem. Uma nova Rosa ou Mini Dino cura o personagem do usuário caso ele já esteja vivo, preservando a regra anterior de doações repetidas.
 
 A cura por curtidas tem cooldown interno de 20 segundos por usuário. Mesmo que o TikFinity envie vários lotes seguidos, cada pessoa pode recuperar no máximo 10 HP por acionamento e 30 HP por minuto.
 

@@ -57,7 +57,7 @@
   const liveBridgeMonitor=$('#liveBridgeMonitor'),liveBridgeDot=$('#liveBridgeDot'),liveBridgeStatus=$('#liveBridgeStatus'),liveBridgeEvent=$('#liveBridgeEvent');
   const liveBridgeTestButtons=[...document.querySelectorAll('[data-live-test-action]')];
   let liveQueueSimulationTimer=0,liveQueueSimulationIndex=0,liveQueueSimulationRunning=false;
-  let activeLiveDonation=null,liveBridgeSource=null,liveBridgeRetryTimer=0,tikFinityEventSocket=null,tikFinityEventRetryTimer=0;
+  let activeLiveDonation=null,liveBridgeSource=null,liveBridgeRetryTimer=0;
   const pendingLiveDonations=[],seenLiveDonationIds=new Set();
   const LIVE_LIKE_HEAL_COOLDOWN_MS=20_000,liveLikeHealReadyAt=new Map();
   const LIVE_BOT_IDLE_MS=10_000;
@@ -697,7 +697,7 @@
       if(alreadyActive||alreadyQueued||alreadyPending||currentlyEntering){liveBridgeEvent.textContent=`@${username} já está participando`;return}
     }
     pendingLiveDonations.push(donation);
-    const description=donation.kind==='heal'?'+10 HP por 50 curtidas':donation.kind==='arena-clear'?'ATIVOU A EXPLOSÃO':donation.trigger==='comment'?'comentou !EU':`${tierConfig[event.tier].shortLabel}${event.giftName?` • ${event.giftName}`:''}`;
+    const description=donation.kind==='heal'?'+10 HP por 50 curtidas':donation.kind==='arena-clear'?'ATIVOU A EXPLOSÃO':donation.trigger==='comment'?'comentou EU':`${tierConfig[event.tier].shortLabel}${event.giftName?` • ${event.giftName}`:''}`;
     liveBridgeEvent.textContent=`@${username} • ${description}`;
     drainLiveDonations();
   }
@@ -772,24 +772,6 @@
       setLiveBridgeStatus(false,'Tentando reconectar...');
       if(source.readyState===EventSource.CLOSED){source.close();liveBridgeRetryTimer=setTimeout(connectLiveBridge,1500)}
     };
-  }
-
-  function tikFinityChatValue(data){return String(data?.comment??data?.commentText??data?.text??data?.content??'').trim().toLocaleLowerCase('pt-BR')}
-  function tikFinityUserValue(data,key){return data?.[key]??data?.user?.[key]??data?.userDetails?.[key]??''}
-  function connectTikFinityEventApi(){
-    if(state.viewMode!=='live'||!window.WebSocket)return;
-    if(tikFinityEventSocket&&(tikFinityEventSocket.readyState===WebSocket.OPEN||tikFinityEventSocket.readyState===WebSocket.CONNECTING))return;
-    clearTimeout(tikFinityEventRetryTimer);
-    const socket=new WebSocket('ws://127.0.0.1:21213/');tikFinityEventSocket=socket;
-    socket.addEventListener('open',()=>{liveBridgeEvent.textContent='Chat direto conectado • digite eu'});
-    socket.addEventListener('message',message=>{
-      let payload;try{payload=JSON.parse(message.data)}catch{return}
-      const eventName=String(payload?.event??payload?.type??'').toLowerCase(),data=payload?.data??payload;if(eventName!=='chat'||tikFinityChatValue(data)!=='eu')return;
-      const username=sanitizeName(tikFinityUserValue(data,'uniqueId')||tikFinityUserValue(data,'username')||tikFinityUserValue(data,'nickname'))||'jogador',nickname=sanitizeName(tikFinityUserValue(data,'nickname'))||username,avatarUrl=String(tikFinityUserValue(data,'profilePictureUrl')||tikFinityUserValue(data,'profilePicturUrl')||''),messageId=String(data?.msgId??data?.messageId??data?.id??`${Date.now()}-${username}`);
-      queueLiveDonation({id:`event-api-chat-${messageId}`,type:'live-interaction',actionId:'comment_join_small',kind:'entry',tier:'small',trigger:'comment',username,nickname,avatarUrl,source:'tikfinity-event-api',receivedAt:Date.now()});
-    });
-    socket.addEventListener('close',()=>{if(tikFinityEventSocket===socket)tikFinityEventSocket=null;tikFinityEventRetryTimer=setTimeout(connectTikFinityEventApi,3000)});
-    socket.addEventListener('error',()=>socket.close());
   }
 
   async function simulateBridgeDonation(actionId) {
@@ -2095,5 +2077,5 @@
   ui.clear.addEventListener('click',clearArenaSession);
   ui.speed.addEventListener('change',event=>{state.speed=Number(event.target.value)});
   window.addEventListener('resize',()=>{fitCanvas();for(const ball of state.balls){ball.baseMoveSpeed=state.width*.18;ball.moveSpeed=ball.character==='char24'?(ball.erenForm===2?ball.baseMoveSpeed*2:ball.erenForm===3?ball.baseMoveSpeed*.58:ball.baseMoveSpeed):ball.baseMoveSpeed;keepConstantSpeed(ball);ball.x=Math.min(state.width-ball.radius,Math.max(ball.radius,ball.x));ball.y=Math.min(state.height-ball.radius,Math.max(ball.radius,ball.y))}for(const companion of state.companions){companion.baseMoveSpeed=state.width*(companion.type==='soccerBall'?.18:companion.type==='sungShadow'?.24:.14);companion.moveSpeed=companion.baseMoveSpeed;const targetSpeed=companion.baseMoveSpeed*(companion.type==='soccerBall'&&state.time<companion.boostUntil?3:1),speed=Math.hypot(companion.vx,companion.vy)||1;companion.vx=companion.vx/speed*targetSpeed;companion.vy=companion.vy/speed*targetSpeed;companion.x=Math.min(state.width-companion.radius,Math.max(companion.radius,companion.x));companion.y=Math.min(state.height-companion.radius,Math.max(companion.radius,companion.y))}});
-  const requestedMode=new URLSearchParams(window.location.search).get('mode');setViewMode(requestedMode==='video'?'video':'live');fitCanvas();syncUi();connectLiveBridge();connectTikFinityEventApi();setInterval(drainLiveDonations,180);setInterval(updateLiveBots,400);requestAnimationFrame(frame);
+  const requestedMode=new URLSearchParams(window.location.search).get('mode');setViewMode(requestedMode==='video'?'video':'live');fitCanvas();syncUi();connectLiveBridge();setInterval(drainLiveDonations,180);setInterval(updateLiveBots,400);requestAnimationFrame(frame);
 })();
